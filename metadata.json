@@ -1,6 +1,6 @@
 {
   "name": "Pads de Áudio em Nuvem",
   "description": "Lista e reprodutor profissional de pads e loops de áudio com upload e armazenamento em nuvem para uso público.",
-  "requestFramePermissions": ["microphone"],
+  "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

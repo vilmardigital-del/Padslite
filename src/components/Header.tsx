@@ -4,7 +4,6 @@ import {
   SlidersHorizontal,
   Cloud,
   UploadCloud,
-  Mic,
   Square,
   Share2,
   Music2,
@@ -15,7 +14,6 @@ import { audioEngine } from '../services/audioEngine';
 interface HeaderProps {
   activeCount: number;
   onOpenUpload: () => void;
-  onOpenRecord: () => void;
   onOpenCloudInfo: () => void;
   onMasterFadeOut: () => void;
   isFadingOut: boolean;
@@ -25,7 +23,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeCount,
   onOpenUpload,
-  onOpenRecord,
   onOpenCloudInfo,
   onMasterFadeOut,
   isFadingOut,
@@ -167,17 +164,6 @@ export const Header: React.FC<HeaderProps> = ({
             <UploadCloud className="w-4 h-4" />
             <span className="hidden sm:inline">Adicionar Áudios</span>
             <span className="sm:hidden">Upload</span>
-          </button>
-
-          {/* Record Button */}
-          <button
-            id="btn-open-record"
-            onClick={onOpenRecord}
-            className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-rose-400 text-xs font-medium flex items-center gap-1.5 transition-colors"
-            title="Gravar Áudio no Microfone"
-          >
-            <Mic className="w-4 h-4" />
-            <span className="hidden sm:inline">Gravar Mic</span>
           </button>
 
           {/* Cloud Info Button */}

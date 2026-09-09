@@ -31,7 +31,6 @@ import { PadCard } from './components/PadCard';
 import { Visualizer } from './components/Visualizer';
 import { Metronome } from './components/Metronome';
 import { UploadModal } from './components/UploadModal';
-import { RecordModal } from './components/RecordModal';
 import { PadEditModal } from './components/PadEditModal';
 import { CloudStorageInfo } from './components/CloudStorageInfo';
 
@@ -47,7 +46,6 @@ export default function App() {
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isRecordOpen, setIsRecordOpen] = useState(false);
   const [isCloudInfoOpen, setIsCloudInfoOpen] = useState(false);
   const [editingPad, setEditingPad] = useState<PadItem | null>(null);
   const [stats, setStats] = useState<CloudStorageStats | null>(null);
@@ -273,7 +271,6 @@ export default function App() {
       <Header
         activeCount={activePadIds.size}
         onOpenUpload={() => setIsUploadOpen(true)}
-        onOpenRecord={() => setIsRecordOpen(true)}
         onOpenCloudInfo={() => setIsCloudInfoOpen(true)}
         onMasterFadeOut={handleMasterFadeOut}
         isFadingOut={isFadingOut}
@@ -483,15 +480,6 @@ export default function App() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={handleUploadSuccess}
-      />
-
-      <RecordModal
-        isOpen={isRecordOpen}
-        onClose={() => setIsRecordOpen(false)}
-        onSaveSuccess={(newPad) => {
-          setPads(prev => [...prev, newPad]);
-          showNotification('Gravação salva na nuvem com sucesso!');
-        }}
       />
 
       <PadEditModal
