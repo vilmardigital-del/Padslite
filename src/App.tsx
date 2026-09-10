@@ -59,66 +59,101 @@ export default function App() {
   const [stats, setStats] = useState<CloudStorageStats | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isVirtualFullscreen, setIsVirtualFullscreen] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
-  // Fullscreen controllers with multi-browser support
-  const requestAppFullscreen = useCallback(() => {
-    try {
-      const doc = document as any;
-      const docEl = document.documentElement as any;
-      if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
-        if (docEl.requestFullscreen) {
-          docEl.requestFullscreen().catch(() => {});
-        } else if (docEl.webkitRequestFullscreen) {
-          docEl.webkitRequestFullscreen();
-        } else if (docEl.mozRequestFullScreen) {
-          docEl.mozRequestFullScreen();
-        } else if (docEl.msRequestFullscreen) {
-          docEl.msRequestFullscreen();
-        }
-      }
-    } catch {
-      // Handled silently
-    }
+  const showNotification = useCallback((msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
   }, []);
 
-  const exitAppFullscreen = useCallback(() => {
-    try {
-      const doc = document as any;
-      if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
-        if (doc.exitFullscreen) {
-          doc.exitFullscreen().catch(() => {});
-        } else if (doc.webkitExitFullscreen) {
-          doc.webkitExitFullscreen();
-        } else if (doc.mozCancelFullScreen) {
-          doc.mozCancelFullScreen();
-        } else if (doc.msExitFullscreen) {
-          doc.msExitFullscreen();
-        }
-      }
-    } catch {
-      // Handled silently
-    }
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
+  // Fullscreen controller supporting Native Fullscreen API + Immersive Virtual Fullscreen fallback
+  const toggleFullscreen = useCallback(async () => {
     const doc = document as any;
-    const isCurrentlyFull = Boolean(
-      doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement
-    );
-    if (isCurrentlyFull) {
-      exitAppFullscreen();
-    } else {
-      requestAppFullscreen();
-    }
-  }, [requestAppFullscreen, exitAppFullscreen]);
+    const docEl = document.documentElement as any;
 
-  // Fullscreen state listener and auto-fullscreen on open / first user interaction
+    const isNativeFull = Boolean(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    // If currently active in either native or virtual mode, exit
+    if (isNativeFull || isVirtualFullscreen) {
+      if (isNativeFull) {
+        try {
+          if (doc.exitFullscreen) {
+            await doc.exitFullscreen();
+          } else if (doc.webkitExitFullscreen) {
+            doc.webkitExitFullscreen();
+          } else if (doc.mozCancelFullScreen) {
+            doc.mozCancelFullScreen();
+          } else if (doc.msExitFullscreen) {
+            doc.msExitFullscreen();
+          }
+        } catch {
+          // Ignore exit error
+        }
+      }
+      setIsVirtualFullscreen(false);
+      setIsFullscreen(false);
+      showNotification('Modo janela restaurado');
+      return;
+    }
+
+    // Try to enter native fullscreen
+    let enteredNative = false;
+    try {
+      if (docEl.requestFullscreen) {
+        await docEl.requestFullscreen();
+        enteredNative = true;
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+        enteredNative = true;
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen();
+        enteredNative = true;
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
+        enteredNative = true;
+      }
+    } catch {
+      enteredNative = false;
+    }
+
+    if (enteredNative) {
+      setIsFullscreen(true);
+      setIsVirtualFullscreen(false);
+      showNotification('Tela cheia ativada');
+    } else {
+      // Fallback: activate virtual immersive mode (works inside iframes and unsupported browsers)
+      setIsVirtualFullscreen(true);
+      setIsFullscreen(true);
+      const isIframe = window.self !== window.top;
+      if (isIframe) {
+        showNotification('Tela cheia ativada no app! Para tela cheia do monitor, abra em nova aba.');
+      } else {
+        showNotification('Modo tela cheia ativado');
+      }
+    }
+  }, [isVirtualFullscreen, showNotification]);
+
+  // Fullscreen state listener
   useEffect(() => {
     const handleFullscreenChange = () => {
       const doc = document as any;
-      setIsFullscreen(Boolean(
-        doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement
-      ));
+      const isNative = Boolean(
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
+      );
+      if (isNative) {
+        setIsFullscreen(true);
+      } else if (!isVirtualFullscreen) {
+        setIsFullscreen(false);
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -126,36 +161,13 @@ export default function App() {
     document.addEventListener('mozfullscreenchange', handleFullscreenChange);
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
-    // Attempt fullscreen immediately upon load
-    requestAppFullscreen();
-
-    // Standard browsers require a user interaction gesture to enter fullscreen.
-    // Trigger fullscreen automatically on the first touch or click on screen!
-    const triggerFullscreenOnFirstGesture = () => {
-      const doc = document as any;
-      if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
-        requestAppFullscreen();
-      }
-    };
-
-    window.addEventListener('pointerdown', triggerFullscreenOnFirstGesture, { once: true, passive: true });
-    window.addEventListener('touchstart', triggerFullscreenOnFirstGesture, { once: true, passive: true });
-
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-      window.removeEventListener('pointerdown', triggerFullscreenOnFirstGesture);
-      window.removeEventListener('touchstart', triggerFullscreenOnFirstGesture);
     };
-  }, [requestAppFullscreen]);
-  const [notification, setNotification] = useState<string | null>(null);
-
-  const showNotification = (msg: string) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
-  };
+  }, [isVirtualFullscreen]);
 
   // Load pads & stats
   const loadData = async () => {
@@ -465,7 +477,9 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black notranslate"
+      className={`min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black notranslate ${
+        isVirtualFullscreen ? 'fixed inset-0 z-50 overflow-y-auto w-full h-full' : 'w-full'
+      }`}
       translate="no"
     >
       {/* Toast Notification */}

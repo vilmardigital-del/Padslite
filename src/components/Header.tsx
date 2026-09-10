@@ -134,20 +134,25 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Fullscreen Toggle Button */}
           <button
             id="btn-toggle-fullscreen"
-            onClick={onToggleFullscreen}
-            className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleFullscreen();
+            }}
+            className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer select-none ${
               isFullscreen
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10'
                 : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
             }`}
-            title={isFullscreen ? 'Sair da Tela Cheia (F11)' : 'Ativar Tela Cheia (F11)'}
+            title={isFullscreen ? 'Sair da Tela Cheia' : 'Ativar Tela Cheia'}
           >
             {isFullscreen ? (
-              <Minimize className="w-3.5 h-3.5 text-cyan-400" />
+              <Minimize className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             ) : (
-              <Maximize className="w-3.5 h-3.5" />
+              <Maximize className="w-3.5 h-3.5 shrink-0" />
             )}
-            <span className="hidden md:inline font-mono text-[11px]">
+            <span className="hidden sm:inline font-mono text-[11px]">
               {isFullscreen ? 'Janela' : 'Tela Cheia'}
             </span>
           </button>

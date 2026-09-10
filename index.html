@@ -27,26 +27,53 @@
       * {
         -webkit-tap-highlight-color: transparent;
       }
-      html, body {
+      html {
         width: 100%;
-        height: 100%;
+        min-height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      body {
+        width: 100%;
+        min-height: 100%;
         margin: 0;
         padding: 0;
         background-color: #090d16;
         color: #f8fafc;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        touch-action: manipulation;
-        overscroll-behavior-y: none;
-        overscroll-behavior-x: none;
-        user-select: none;
-        -webkit-user-select: none;
-      }
-      /* Prevenir pull-to-refresh em navegadores móveis */
-      body {
-        position: fixed;
         overflow-y: auto;
-        inset: 0;
+        overflow-x: hidden;
+      }
+      #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+      /* Estilização da barra de rolagem vertical e horizontal */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #090d16;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #06b6d4;
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #334155 #090d16;
+      }
+      /* Permitir seleção em campos de texto */
+      input, textarea, select {
+        user-select: text;
+        -webkit-user-select: text;
       }
       /* Custom scrollbar hiding for horizontal touch scrollers */
       .no-scrollbar::-webkit-scrollbar {
