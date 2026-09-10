@@ -13,12 +13,14 @@ import {
   Trash2,
   Sliders,
   Check,
-  Cloud
+  Cloud,
+  Loader2
 } from 'lucide-react';
 
 interface PadCardProps {
   pad: PadItem;
   isPlaying: boolean;
+  isLoading?: boolean;
   onTogglePlay: (pad: PadItem) => void;
   onUpdatePad: (padId: string, updates: Partial<PadItem>) => void;
   onDeletePad: (padId: string) => void;
@@ -28,6 +30,7 @@ interface PadCardProps {
 export const PadCard: React.FC<PadCardProps> = ({
   pad,
   isPlaying,
+  isLoading = false,
   onTogglePlay,
   onUpdatePad,
   onDeletePad,
@@ -165,16 +168,18 @@ export const PadCard: React.FC<PadCardProps> = ({
         <div
           className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-md ${
             isPlaying
-              ? 'scale-110 shadow-lg'
+              ? 'scale-110 shadow-lg ring-2 ring-white/50'
               : 'scale-100 hover:scale-105'
           }`}
           style={{
-            backgroundColor: isPlaying ? pad.color || '#0284c7' : 'rgba(30, 41, 59, 0.8)',
-            boxShadow: isPlaying ? `0 0 24px ${pad.color}88` : undefined,
+            backgroundColor: isPlaying ? '#ef4444' : 'rgba(30, 41, 59, 0.8)',
+            boxShadow: isPlaying ? '0 0 24px rgba(239, 68, 68, 0.6)' : undefined,
             color: isPlaying ? '#ffffff' : pad.color || '#38bdf8'
           }}
         >
-          {isPlaying ? (
+          {isLoading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-cyan-300" />
+          ) : isPlaying ? (
             <Square className="w-6 h-6 fill-current animate-pulse" />
           ) : (
             <Play className="w-6 h-6 fill-current ml-0.5" />
@@ -185,10 +190,19 @@ export const PadCard: React.FC<PadCardProps> = ({
           {pad.name}
         </h3>
 
-        <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
-          <span className="capitalize">{pad.category}</span>
-          <span>•</span>
-          <span>{pad.isLoop ? 'Loop Contínuo' : 'Disparo Único'}</span>
+        <div className="mt-1 flex items-center gap-2 text-xs">
+          {isLoading ? (
+            <span className="text-cyan-400 font-medium">Carregando áudio...</span>
+          ) : isPlaying ? (
+            <span className="text-rose-400 font-medium flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block" />
+              Tocando • Clique para Parar
+            </span>
+          ) : (
+            <span className="text-slate-400">
+              {pad.isLoop ? 'Loop Contínuo' : 'Disparo Único'}
+            </span>
+          )}
         </div>
       </button>
 

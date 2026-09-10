@@ -17,7 +17,9 @@ import {
   Flame,
   Cloud,
   UploadCloud,
-  Trash2
+  Trash2,
+  User,
+  VolumeX
 } from 'lucide-react';
 import { PadItem, CloudStorageStats } from './types';
 import { audioEngine } from './services/audioEngine';
@@ -43,10 +45,12 @@ export default function App() {
   const [pads, setPads] = useState<PadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePadIds, setActivePadIds] = useState<Set<string>>(new Set());
+  const [loadingPadIds, setLoadingPadIds] = useState<Set<string>>(new Set());
+  const [playbackMode, setPlaybackMode] = useState<'single' | 'multi'>('single');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string>('all');
-  const [isCrossfadeMode, setIsCrossfadeMode] = useState(true);
+  const [isCrossfadeMode, setIsCrossfadeMode] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   // Modals state
@@ -74,14 +78,22 @@ export default function App() {
       }
 
       const [padsData, statsData] = await Promise.all([fetchPads(), fetchCloudStats()]);
-      // Filter out system pads to strictly respect user's request for own pads only
-      const customOnly = padsData.filter(p => p.isCustomUpload);
+      // Filter out system pads and guarantee immediate pure audio playback
+      const customOnly = padsData
+        .filter(p => p.isCustomUpload)
+        .map(p => ({
+          ...p,
+          fadeInTime: 0,
+          fadeOutTime: 0.05,
+        }));
       setPads(customOnly);
       saveStoredPads(customOnly);
       setStats(statsData);
     } catch (err: any) {
       console.error('Error loading data:', err);
-      const fallback = (getStoredPads() || []).filter(p => p.isCustomUpload);
+      const fallback = (getStoredPads() || [])
+        .filter(p => p.isCustomUpload)
+        .map(p => ({ ...p, fadeInTime: 0, fadeOutTime: 0.05 }));
       setPads(fallback);
       showNotification('Pads carregados localmente.');
     } finally {
@@ -105,11 +117,62 @@ export default function App() {
       });
     });
 
+    const unsubscribeLoading = audioEngine.subscribeLoading((padId, isLoading) => {
+      setLoadingPadIds(prev => {
+        const next = new Set(prev);
+        if (isLoading) {
+          next.add(padId);
+        } else {
+          next.delete(padId);
+        }
+        return next;
+      });
+    });
+
     return () => {
       unsubscribe();
-      audioEngine.stopAll(0);
+      unsubscribeLoading();
+      audioEngine.stopAll();
     };
   }, []);
+
+  // Master Stop All - instant, no lingering audio
+  const handleMasterFadeOut = useCallback(() => {
+    if (activePadIds.size === 0 && loadingPadIds.size === 0) return;
+    setIsFadingOut(true);
+    audioEngine.stopAll();
+    setActivePadIds(new Set());
+    setLoadingPadIds(new Set());
+    showNotification('Reprodução parada.');
+    setTimeout(() => {
+      setIsFadingOut(false);
+    }, 150);
+  }, [activePadIds.size, loadingPadIds.size]);
+
+  // Toggle play for a pad - individual or multi
+  const handleTogglePad = useCallback((pad: PadItem) => {
+    const isPlaying = activePadIds.has(pad.id);
+    const isLoading = loadingPadIds.has(pad.id);
+
+    if (isPlaying || isLoading) {
+      // Stop it immediately without any delay or overlap
+      audioEngine.stopPad(pad.id);
+      setActivePadIds(prev => {
+        const next = new Set(prev);
+        next.delete(pad.id);
+        return next;
+      });
+    } else {
+      // In Single Mode (Default): stop any other currently playing pads immediately!
+      if (playbackMode === 'single') {
+        audioEngine.stopAll();
+        setActivePadIds(new Set());
+      }
+      audioEngine.playPad(pad, (errorMsg) => {
+        showNotification(errorMsg);
+      });
+    }
+  }, [activePadIds, loadingPadIds, playbackMode]);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -135,39 +198,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pads, isCrossfadeMode]);
-
-  // Toggle play for a pad
-  const handleTogglePad = useCallback((pad: PadItem) => {
-    const isPlaying = activePadIds.has(pad.id);
-
-    if (isPlaying) {
-      // Stop it
-      audioEngine.stopPad(pad.id, pad.fadeOutTime || 0.4);
-    } else {
-      // If Crossfade mode is active AND this pad is a worship pad,
-      // stop other playing worship pads smoothly so only one harmonic key is active
-      if (isCrossfadeMode && pad.category === 'worship') {
-        pads.forEach(p => {
-          if (p.category === 'worship' && p.id !== pad.id && activePadIds.has(p.id)) {
-            audioEngine.stopPad(p.id, p.fadeOutTime || 2.0);
-          }
-        });
-      }
-      audioEngine.playPad(pad);
-    }
-  }, [activePadIds, isCrossfadeMode, pads]);
-
-  // Master Fade Out All
-  const handleMasterFadeOut = () => {
-    if (activePadIds.size === 0) return;
-    setIsFadingOut(true);
-    audioEngine.stopAll(2.0);
-    showNotification('Fade Out aplicado em todos os pads');
-    setTimeout(() => {
-      setIsFadingOut(false);
-    }, 2100);
-  };
+  }, [pads, handleTogglePad, handleMasterFadeOut]);
 
   // Update pad settings
   const handleUpdatePad = async (padId: string, updates: Partial<PadItem>) => {
@@ -370,18 +401,57 @@ export default function App() {
               )}
             </div>
 
-            {/* Crossfade Toggle and Action Buttons */}
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 cursor-pointer bg-slate-950/70 border border-slate-800 px-3 py-1.5 rounded-xl text-xs select-none">
-                <input
-                  type="checkbox"
-                  checked={isCrossfadeMode}
-                  onChange={(e) => setIsCrossfadeMode(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-400 bg-slate-800 border-slate-700 focus:ring-cyan-400"
-                />
-                <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-slate-300 font-medium hidden sm:inline">Crossfade Suave</span>
-              </label>
+            {/* Playback Mode Selector & Quick Action Buttons */}
+            <div className="flex items-center flex-wrap gap-2">
+              {/* Playback Mode: Individual vs Sobreposição */}
+              <div className="flex items-center p-1 bg-slate-950/80 border border-slate-800 rounded-xl text-xs gap-1">
+                <button
+                  id="btn-mode-single"
+                  onClick={() => {
+                    setPlaybackMode('single');
+                    if (activePadIds.size > 1) {
+                      audioEngine.stopAll();
+                      setActivePadIds(new Set());
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                    playbackMode === 'single'
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Modo Individual: ao dar Play em um áudio, para os outros automaticamente"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Modo Individual</span>
+                </button>
+
+                <button
+                  id="btn-mode-multi"
+                  onClick={() => setPlaybackMode('multi')}
+                  className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
+                    playbackMode === 'multi'
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Modo Sobreposição: permite disparar múltiplos áudios ao mesmo tempo"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Sobreposição</span>
+                </button>
+              </div>
+
+              {/* Instant Stop All Button */}
+              {(activePadIds.size > 0 || loadingPadIds.size > 0) && (
+                <button
+                  id="btn-stop-all-active"
+                  onClick={handleMasterFadeOut}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-600/30 transition-all cursor-pointer animate-pulse"
+                  title="Parar toda a execução imediatamente"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span>Parar Tudo ({activePadIds.size})</span>
+                </button>
+              )}
 
               {/* If any system pad exists, show 1-click removal */}
               {pads.some(p => !p.isCustomUpload) && (
@@ -392,7 +462,7 @@ export default function App() {
                   title="Remover pads padrão do sistema"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remover Pads do Sistema</span>
+                  <span>Remover Sistema</span>
                 </button>
               )}
 
@@ -560,6 +630,7 @@ export default function App() {
                 key={pad.id}
                 pad={pad}
                 isPlaying={activePadIds.has(pad.id)}
+                isLoading={loadingPadIds.has(pad.id)}
                 onTogglePlay={handleTogglePad}
                 onUpdatePad={handleUpdatePad}
                 onDeletePad={handleDeletePad}

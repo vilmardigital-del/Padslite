@@ -312,11 +312,11 @@ app.post('/api/upload', upload.array('audioFiles', 50), (req, res) => {
         duration: 0, // Will be decoded in browser
         color: PAD_COLORS[(currentPads.length + index) % PAD_COLORS.length],
         isLoop: true,
-        volume: 0.85,
+        volume: 0.95,
         pan: 0,
         filterCutoff: 20000,
-        fadeInTime: category === 'worship' ? 1.5 : 0.05,
-        fadeOutTime: category === 'worship' ? 2.0 : 0.1,
+        fadeInTime: 0,
+        fadeOutTime: 0.05,
         isCustomUpload: true,
         cloudStored: true,
         createdAt: new Date().toISOString()

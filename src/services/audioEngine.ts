@@ -4,20 +4,10 @@ import { getAudioBlob } from './storage';
 interface ActivePadState {
   source: AudioBufferSourceNode;
   gainNode: GainNode;
-  filterNode: BiquadFilterNode;
-  pannerNode: StereoPannerNode;
+  filterNode?: BiquadFilterNode;
+  pannerNode?: StereoPannerNode;
   startTime: number;
 }
-
-const NOTE_FREQS: Record<string, number> = {
-  'C': 130.81, 'C#': 138.59, 'Db': 138.59,
-  'D': 146.83, 'D#': 155.56, 'Eb': 155.56,
-  'E': 164.81,
-  'F': 174.61, 'F#': 185.00, 'Gb': 185.00,
-  'G': 196.00, 'G#': 207.65, 'Ab': 207.65,
-  'A': 220.00, 'A#': 233.08, 'Bb': 233.08,
-  'B': 246.94
-};
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -26,7 +16,9 @@ class AudioEngine {
   private analyser: AnalyserNode | null = null;
   private bufferCache: Map<string, AudioBuffer> = new Map();
   private activePads: Map<string, ActivePadState> = new Map();
+  private pendingLoads: Set<string> = new Set();
   private listeners: Set<(padId: string, isPlaying: boolean) => void> = new Set();
+  private loadingListeners: Set<(padId: string, isLoading: boolean) => void> = new Set();
 
   private metronomeTimer: number | null = null;
   private isMetronomeActive: boolean = false;
@@ -42,21 +34,25 @@ class AudioEngine {
         if (!AudioCtx) return;
         this.ctx = new AudioCtx();
 
+        // Master gain with clean flat response
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
+        // Master filter for global tone control
         this.masterFilter = this.ctx.createBiquadFilter();
         this.masterFilter.type = 'lowpass';
         this.masterFilter.frequency.setValueAtTime(20000, this.ctx.currentTime);
 
+        // Visualizer analyser
         this.analyser = this.ctx.createAnalyser();
         this.analyser.fftSize = 256;
         this.analyser.smoothingTimeConstant = 0.8;
 
-        this.masterFilter.connect(this.masterGain);
-        this.masterGain.connect(this.analyser);
+        this.masterGain.connect(this.masterFilter);
+        this.masterFilter.connect(this.analyser);
         this.analyser.connect(this.ctx.destination);
 
+        // Metronome gain
         this.metronomeGain = this.ctx.createGain();
         this.metronomeGain.gain.value = 0.5;
         this.metronomeGain.connect(this.ctx.destination);
@@ -75,216 +71,226 @@ class AudioEngine {
     return () => this.listeners.delete(fn);
   }
 
+  public subscribeLoading(fn: (padId: string, isLoading: boolean) => void) {
+    this.loadingListeners.add(fn);
+    return () => this.loadingListeners.delete(fn);
+  }
+
   private notify(padId: string, isPlaying: boolean) {
     this.listeners.forEach(fn => fn(padId, isPlaying));
   }
 
-  // Create a synthetic warm pad buffer when audio file is unreachable
-  private createSyntheticPadBuffer(pad: PadItem): AudioBuffer | null {
-    if (!this.ctx) return null;
-    try {
-      const sampleRate = this.ctx.sampleRate;
-      const duration = 5.0; // 5 seconds loop
-      const frameCount = sampleRate * duration;
-      const buffer = this.ctx.createBuffer(2, frameCount, sampleRate);
-      const left = buffer.getChannelData(0);
-      const right = buffer.getChannelData(1);
-
-      const rootFreq = (pad.musicalKey && NOTE_FREQS[pad.musicalKey]) ? NOTE_FREQS[pad.musicalKey] : 130.81;
-      const fifthFreq = rootFreq * 1.4983; // Perfect fifth
-      const octaveFreq = rootFreq * 2;
-
-      for (let i = 0; i < frameCount; i++) {
-        const t = i / sampleRate;
-        // Warm subtle chorus modulation
-        const chorus = Math.sin(2 * Math.PI * 0.25 * t) * 0.5;
-        const s1 = Math.sin(2 * Math.PI * (rootFreq + chorus) * t);
-        const s2 = Math.sin(2 * Math.PI * (fifthFreq - chorus * 0.5) * t) * 0.7;
-        const s3 = Math.sin(2 * Math.PI * (octaveFreq + chorus * 0.8) * t) * 0.4;
-        const s4 = (Math.random() * 2 - 1) * 0.015; // subtle tape breath
-
-        // Seamless loop window envelope
-        let win = 1.0;
-        const edgeSamples = sampleRate * 0.1;
-        if (i < edgeSamples) win = i / edgeSamples;
-        else if (i > frameCount - edgeSamples) win = (frameCount - i) / edgeSamples;
-
-        const val = (s1 + s2 + s3 + s4) * 0.28 * win;
-        left[i] = val;
-        right[i] = (s1 * 0.9 + s2 * 1.1 + s3 * 0.8) * 0.28 * win;
-      }
-      return buffer;
-    } catch {
-      return null;
-    }
+  private notifyLoading(padId: string, isLoading: boolean) {
+    this.loadingListeners.forEach(fn => fn(padId, isLoading));
   }
 
-  public async getAudioBuffer(url: string, pad?: PadItem): Promise<AudioBuffer | null> {
+  public isPadLoading(padId: string): boolean {
+    return this.pendingLoads.has(padId);
+  }
+
+  // Load and decode pure original audio file with ZERO AI/synthetic alteration
+  public async getAudioBuffer(url: string): Promise<AudioBuffer> {
     this.init();
-    if (!this.ctx) return null;
+    if (!this.ctx) {
+      throw new Error('AudioContext não disponível');
+    }
 
     if (this.bufferCache.has(url)) {
       return this.bufferCache.get(url)!;
     }
 
-    // Check if URL is stored in IndexedDB
+    // 1. Check if URL is stored in IndexedDB (idb://)
     if (url.startsWith('idb://')) {
-      try {
-        const blobId = url.replace('idb://', '');
-        const data = await getAudioBlob(blobId);
-        if (data) {
-          let arrayBuffer: ArrayBuffer;
-          if (data instanceof Blob) {
-            arrayBuffer = await data.arrayBuffer();
-          } else {
-            arrayBuffer = data;
-          }
-          const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-          this.bufferCache.set(url, audioBuffer);
-          return audioBuffer;
-        }
-      } catch (err) {
-        console.warn('Failed to load from IndexedDB:', err);
+      const blobId = url.replace('idb://', '');
+      const data = await getAudioBlob(blobId);
+      if (!data) {
+        throw new Error('Áudio original não encontrado no armazenamento local');
       }
+
+      let arrayBuffer: ArrayBuffer;
+      if (data instanceof Blob) {
+        arrayBuffer = await data.arrayBuffer();
+      } else {
+        arrayBuffer = data;
+      }
+
+      // decodeAudioData detaches the arrayBuffer, so we pass a slice
+      const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+      this.bufferCache.set(url, audioBuffer);
+      return audioBuffer;
     }
 
-    // Try fetching normal HTTP/HTTPS URL
-    try {
-      const resp = await fetch(url);
-      if (resp.ok) {
-        const contentType = resp.headers.get('content-type') || '';
-        // If server returned index.html due to SPA rewrite on 404, reject so we use synthetic fallback
-        if (contentType.includes('text/html')) {
-          throw new Error('Received HTML instead of audio');
-        }
-        const arrayBuffer = await resp.arrayBuffer();
-        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-        this.bufferCache.set(url, audioBuffer);
-        return audioBuffer;
-      }
-    } catch (err) {
-      console.warn('Network audio fetch failed for:', url, err);
+    // 2. Fetch from server or static URL
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`Falha ao carregar áudio (${resp.status}): ${url}`);
     }
 
-    // Fallback: Generate synthetic audio buffer so the pad plays smoothly
-    if (pad) {
-      const fallbackBuffer = this.createSyntheticPadBuffer(pad);
-      if (fallbackBuffer) {
-        this.bufferCache.set(url, fallbackBuffer);
-        return fallbackBuffer;
-      }
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error('Arquivo de áudio não encontrado no servidor');
     }
 
-    return null;
+    const arrayBuffer = await resp.arrayBuffer();
+    const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+    this.bufferCache.set(url, audioBuffer);
+    return audioBuffer;
   }
 
   public isPadPlaying(padId: string): boolean {
     return this.activePads.has(padId);
   }
 
-  public async playPad(pad: PadItem) {
+  public async playPad(pad: PadItem, onError?: (errorMsg: string) => void) {
     this.init();
-    if (!this.ctx || !this.masterFilter) return;
+    if (!this.ctx || !this.masterGain) return;
 
-    // If already playing, stop it first smoothly
+    // If this pad is currently playing, clicking again stops it immediately
     if (this.activePads.has(pad.id)) {
-      this.stopPad(pad.id, pad.fadeOutTime || 0.4);
+      this.stopPad(pad.id);
       return;
     }
 
-    const buffer = await this.getAudioBuffer(pad.url, pad);
-    if (!buffer) {
-      console.error('Could not play pad, buffer unavailable:', pad.url);
+    // If already loading this pad, cancel it
+    if (this.pendingLoads.has(pad.id)) {
+      this.pendingLoads.delete(pad.id);
+      this.notifyLoading(pad.id, false);
       return;
     }
 
+    this.pendingLoads.add(pad.id);
+    this.notifyLoading(pad.id, true);
 
-    const now = this.ctx.currentTime;
-    const source = this.ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = pad.isLoop;
+    try {
+      const buffer = await this.getAudioBuffer(pad.url);
 
-    const gainNode = this.ctx.createGain();
-    const filterNode = this.ctx.createBiquadFilter();
-    filterNode.type = 'lowpass';
-    filterNode.frequency.setValueAtTime(pad.filterCutoff || 20000, now);
-
-    let pannerNode: any;
-    if (this.ctx.createStereoPanner) {
-      pannerNode = this.ctx.createStereoPanner();
-      pannerNode.pan.setValueAtTime(pad.pan || 0, now);
-    } else {
-      pannerNode = this.ctx.createGain();
-    }
-
-    // Fade in envelope
-    const targetVol = pad.volume ?? 0.8;
-    const fadeIn = pad.fadeInTime || 0.05;
-    gainNode.gain.setValueAtTime(0.001, now);
-    gainNode.gain.exponentialRampToValueAtTime(Math.max(0.001, targetVol), now + fadeIn);
-
-    // Audio node connections: source -> filter -> panner -> padGain -> masterFilter
-    source.connect(filterNode);
-    filterNode.connect(pannerNode);
-    pannerNode.connect(gainNode);
-    gainNode.connect(this.masterFilter);
-
-    source.onended = () => {
-      if (this.activePads.get(pad.id)?.source === source) {
-        this.activePads.delete(pad.id);
-        this.notify(pad.id, false);
+      // Verify user didn't hit stop while audio was loading
+      if (!this.pendingLoads.has(pad.id)) {
+        return;
       }
-    };
+      this.pendingLoads.delete(pad.id);
+      this.notifyLoading(pad.id, false);
 
-    source.start(now);
-    this.activePads.set(pad.id, {
-      source,
-      gainNode,
-      filterNode,
-      pannerNode,
-      startTime: now,
-    });
+      // Stop any existing instance of this pad if present
+      if (this.activePads.has(pad.id)) {
+        this.stopPad(pad.id);
+      }
 
-    this.notify(pad.id, true);
+      const now = this.ctx.currentTime;
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = pad.isLoop;
+
+      const gainNode = this.ctx.createGain();
+      const targetVol = pad.volume !== undefined ? pad.volume : 0.9;
+      // Start with original volume cleanly and immediately (0.005s fast micro-ramp avoids click)
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.linearRampToValueAtTime(Math.max(0.001, targetVol), now + 0.008);
+
+      let lastNode: AudioNode = source;
+
+      // Optional manual filter (only if user explicitly moved filter slider below 19000Hz)
+      let filterNode: BiquadFilterNode | undefined;
+      if (pad.filterCutoff && pad.filterCutoff < 19000) {
+        filterNode = this.ctx.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(pad.filterCutoff, now);
+        lastNode.connect(filterNode);
+        lastNode = filterNode;
+      }
+
+      // Optional manual stereo pan (only if user changed pan)
+      let pannerNode: StereoPannerNode | undefined;
+      if (pad.pan && pad.pan !== 0 && this.ctx.createStereoPanner) {
+        pannerNode = this.ctx.createStereoPanner();
+        pannerNode.pan.setValueAtTime(pad.pan, now);
+        lastNode.connect(pannerNode);
+        lastNode = pannerNode;
+      }
+
+      lastNode.connect(gainNode);
+      gainNode.connect(this.masterGain);
+
+      source.onended = () => {
+        if (this.activePads.get(pad.id)?.source === source) {
+          this.activePads.delete(pad.id);
+          this.notify(pad.id, false);
+        }
+      };
+
+      source.start(now);
+      this.activePads.set(pad.id, {
+        source,
+        gainNode,
+        filterNode,
+        pannerNode,
+        startTime: now,
+      });
+
+      this.notify(pad.id, true);
+    } catch (err: any) {
+      this.pendingLoads.delete(pad.id);
+      this.notifyLoading(pad.id, false);
+      console.error(`Erro ao reproduzir áudio do pad "${pad.name}":`, err);
+      if (onError) {
+        onError(err.message || 'Erro ao carregar o arquivo de áudio original.');
+      }
+    }
   }
 
-  public stopPad(padId: string, fadeOutSeconds?: number) {
+  // Stop a specific pad immediately
+  public stopPad(padId: string, _fadeOutTime?: number) {
+    // If it was still loading, cancel loading immediately
+    if (this.pendingLoads.has(padId)) {
+      this.pendingLoads.delete(padId);
+      this.notifyLoading(padId, false);
+    }
+
     const active = this.activePads.get(padId);
-    if (!active || !this.ctx) return;
+    if (!active || !this.ctx) {
+      // Ensure UI is notified even if already stopped
+      this.notify(padId, false);
+      return;
+    }
+
+    // IMMEDIATELY remove from active map so UI updates instantly without lag
+    this.activePads.delete(padId);
+    this.notify(padId, false);
 
     const now = this.ctx.currentTime;
-    const fadeOut = fadeOutSeconds !== undefined ? fadeOutSeconds : 0.5;
-
-    // Smooth release fade out
     try {
+      // 15ms fast micro-fade to avoid speaker pops/clicks, then hard stop
       active.gainNode.gain.cancelScheduledValues(now);
-      active.gainNode.gain.setValueAtTime(Math.max(0.001, active.gainNode.gain.value), now);
-      active.gainNode.gain.exponentialRampToValueAtTime(0.0001, now + fadeOut);
+      active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
+      active.gainNode.gain.linearRampToValueAtTime(0, now + 0.015);
 
       setTimeout(() => {
         try {
           active.source.stop();
           active.source.disconnect();
           active.gainNode.disconnect();
-          active.filterNode.disconnect();
+          if (active.filterNode) active.filterNode.disconnect();
+          if (active.pannerNode) active.pannerNode.disconnect();
         } catch {
-          // Ignore if already stopped
+          // Already stopped/disconnected
         }
-        if (this.activePads.get(padId) === active) {
-          this.activePads.delete(padId);
-          this.notify(padId, false);
-        }
-      }, fadeOut * 1000 + 50);
+      }, 25);
     } catch {
-      active.source.stop();
-      this.activePads.delete(padId);
-      this.notify(padId, false);
+      try {
+        active.source.stop();
+        active.source.disconnect();
+        active.gainNode.disconnect();
+      } catch {
+        // Safe catch
+      }
     }
   }
 
-  public stopAll(fadeOutSeconds: number = 2.0) {
+  // Stop all active pads immediately
+  public stopAll(_fadeOutTime?: number) {
+    this.pendingLoads.clear();
     const padIds = Array.from(this.activePads.keys());
-    padIds.forEach(id => this.stopPad(id, fadeOutSeconds));
+    padIds.forEach(id => this.stopPad(id));
   }
 
   public setPadVolume(padId: string, volume: number) {
@@ -297,7 +303,7 @@ class AudioEngine {
 
   public setPadFilter(padId: string, cutoff: number) {
     const active = this.activePads.get(padId);
-    if (active && this.ctx) {
+    if (active && active.filterNode && this.ctx) {
       active.filterNode.frequency.setValueAtTime(cutoff, this.ctx.currentTime);
     }
   }
