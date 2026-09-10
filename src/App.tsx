@@ -18,7 +18,6 @@ import {
   Cloud,
   UploadCloud,
   Trash2,
-  User,
   VolumeX
 } from 'lucide-react';
 import { PadItem, CloudStorageStats } from './types';
@@ -46,7 +45,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activePadIds, setActivePadIds] = useState<Set<string>>(new Set());
   const [loadingPadIds, setLoadingPadIds] = useState<Set<string>>(new Set());
-  const [playbackMode, setPlaybackMode] = useState<'single' | 'multi'>('single');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string>('all');
@@ -149,7 +147,7 @@ export default function App() {
     }, 150);
   }, [activePadIds.size, loadingPadIds.size]);
 
-  // Toggle play for a pad - individual or multi
+  // Toggle play for a pad - strictly individual
   const handleTogglePad = useCallback((pad: PadItem) => {
     const isPlaying = activePadIds.has(pad.id);
     const isLoading = loadingPadIds.has(pad.id);
@@ -163,16 +161,14 @@ export default function App() {
         return next;
       });
     } else {
-      // In Single Mode (Default): stop any other currently playing pads immediately!
-      if (playbackMode === 'single') {
-        audioEngine.stopAll();
-        setActivePadIds(new Set());
-      }
+      // Strictly individual: stop any other playing pads immediately so they never overlap!
+      audioEngine.stopAll();
+      setActivePadIds(new Set());
       audioEngine.playPad(pad, (errorMsg) => {
         showNotification(errorMsg);
       });
     }
-  }, [activePadIds, loadingPadIds, playbackMode]);
+  }, [activePadIds, loadingPadIds]);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -401,45 +397,8 @@ export default function App() {
               )}
             </div>
 
-            {/* Playback Mode Selector & Quick Action Buttons */}
+            {/* Quick Action Buttons */}
             <div className="flex items-center flex-wrap gap-2">
-              {/* Playback Mode: Individual vs Sobreposição */}
-              <div className="flex items-center p-1 bg-slate-950/80 border border-slate-800 rounded-xl text-xs gap-1">
-                <button
-                  id="btn-mode-single"
-                  onClick={() => {
-                    setPlaybackMode('single');
-                    if (activePadIds.size > 1) {
-                      audioEngine.stopAll();
-                      setActivePadIds(new Set());
-                    }
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                    playbackMode === 'single'
-                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="Modo Individual: ao dar Play em um áudio, para os outros automaticamente"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Modo Individual</span>
-                </button>
-
-                <button
-                  id="btn-mode-multi"
-                  onClick={() => setPlaybackMode('multi')}
-                  className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                    playbackMode === 'multi'
-                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="Modo Sobreposição: permite disparar múltiplos áudios ao mesmo tempo"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Sobreposição</span>
-                </button>
-              </div>
-
               {/* Instant Stop All Button */}
               {(activePadIds.size > 0 || loadingPadIds.size > 0) && (
                 <button
