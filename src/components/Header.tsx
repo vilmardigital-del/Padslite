@@ -5,9 +5,8 @@ import {
   Cloud,
   UploadCloud,
   Square,
-  Share2,
   Music2,
-  HardDrive
+  Sliders
 } from 'lucide-react';
 import { audioEngine } from '../services/audioEngine';
 
@@ -30,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [masterVolume, setMasterVolume] = useState(0.85);
   const [masterFilter, setMasterFilter] = useState(20000);
+  const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [showFilterControl, setShowFilterControl] = useState(false);
 
   const handleVolumeChange = (val: number) => {
@@ -43,123 +43,96 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="w-full bg-slate-950/95 border-b border-slate-800/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-3 sm:px-5 py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
-        {/* Brand & Badge */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-md shadow-cyan-500/20 shrink-0">
+    <header className="w-full bg-[#0d121f]/95 border-b border-slate-800/80 backdrop-blur-xl sticky top-0 z-30 transition-all">
+      <div className="max-w-4xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
+        {/* Brand & Pad Count Indicator */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-cyan-500/25 shrink-0">
             <Music2 className="w-4 h-4" />
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <h1 className="font-bold text-slate-100 text-sm sm:text-base tracking-tight whitespace-nowrap">
-              Pads de Áudio
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 className="font-bold text-white text-sm sm:text-base tracking-tight truncate">
+              Pads Player
             </h1>
-            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 whitespace-nowrap font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="hidden xs:inline">Nuvem:</span> {totalPadsCount} pads
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800/90 text-cyan-300 border border-slate-700/80 shrink-0">
+              {totalPadsCount}
             </span>
           </div>
         </div>
 
-        {/* Master Controls & Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap ml-auto">
-          {/* Master Volume Slider */}
-          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-lg px-2 sm:px-2.5 py-1" title={`Volume Master: ${Math.round(masterVolume * 100)}%`}>
-            <Volume2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={masterVolume}
-              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="w-16 sm:w-20 accent-cyan-400 h-1 bg-slate-800 rounded cursor-pointer"
-            />
-            <span className="text-[10px] font-mono text-slate-400 w-7 text-right">
-              {Math.round(masterVolume * 100)}%
-            </span>
-          </div>
-
-          {/* Master Filter Toggle */}
+        {/* Master Controls for Touch Devices */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Master Volume Quick Touch */}
           <div className="relative">
             <button
-              onClick={() => setShowFilterControl(!showFilterControl)}
-              className={`px-2 sm:px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors ${
-                masterFilter < 19000
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                  : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:text-slate-200'
+              onClick={() => setShowVolumePopup(!showVolumePopup)}
+              className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
+                showVolumePopup
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-sm'
+                  : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white'
               }`}
-              title="Filtro Master de Frequência"
+              title="Volume Master"
             >
-              <SlidersHorizontal className="w-3 h-3" />
-              <span className="hidden sm:inline">Tom:</span>
-              <span className="font-mono text-[10px]">
-                {masterFilter >= 19000 ? 'Aberto' : `${Math.round(masterFilter / 1000)}k`}
-              </span>
+              <Volume2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-mono text-[11px]">{Math.round(masterVolume * 100)}%</span>
             </button>
 
-            {showFilterControl && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 p-2.5 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl z-50 space-y-2">
-                <div className="flex justify-between text-[11px] text-slate-300">
-                  <span>Corte Tom</span>
-                  <span className="font-mono text-cyan-400">{Math.round(masterFilter)} Hz</span>
+            {showVolumePopup && (
+              <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-50 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex justify-between text-xs text-slate-300 font-medium">
+                  <span>Volume Geral</span>
+                  <span className="font-mono text-cyan-400">{Math.round(masterVolume * 100)}%</span>
                 </div>
                 <input
                   type="range"
-                  min="300"
-                  max="20000"
-                  step="100"
-                  value={masterFilter}
-                  onChange={(e) => handleFilterChange(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 h-1 bg-slate-800 rounded cursor-pointer"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={masterVolume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
                 />
-                <button
-                  onClick={() => handleFilterChange(20000)}
-                  className="w-full py-0.5 text-[10px] text-slate-400 hover:text-white bg-slate-800/60 rounded"
-                >
-                  Resetar (Aberto)
-                </button>
+                <div className="flex justify-between text-[10px] text-slate-500 pt-1">
+                  <button onClick={() => handleVolumeChange(0.5)} className="hover:text-white">50%</button>
+                  <button onClick={() => handleVolumeChange(0.85)} className="hover:text-white">85%</button>
+                  <button onClick={() => handleVolumeChange(1.0)} className="hover:text-white">100%</button>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Master Panic / Stop All */}
-          <button
-            id="btn-fade-out-all"
-            onClick={onMasterFadeOut}
-            disabled={activeCount === 0 || isFadingOut}
-            className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all ${
-              activeCount > 0
-                ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/30 cursor-pointer animate-pulse'
-                : 'bg-slate-900/60 text-slate-600 border border-slate-800/50 cursor-not-allowed'
-            }`}
-            title="Parar toda a reprodução imediatamente"
-          >
-            <Square className="w-3 h-3 fill-current" />
-            <span className="hidden xs:inline">Parar Tudo</span>
-            <span className="xs:hidden">Parar</span>
-          </button>
+          {/* Master Stop Button (Only visible if something is playing) */}
+          {activeCount > 0 && (
+            <button
+              id="btn-fade-out-all"
+              onClick={onMasterFadeOut}
+              className="h-9 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/40 active:scale-95 transition-all cursor-pointer animate-pulse"
+              title="Parar toda a execução imediatamente"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>PARAR</span>
+            </button>
+          )}
 
           {/* Upload Button */}
           <button
             id="btn-open-upload"
             onClick={onOpenUpload}
-            className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-semibold flex items-center gap-1 shadow-sm shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+            className="h-9 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/25 active:scale-95 transition-all cursor-pointer"
+            title="Adicionar novos áudios"
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Adicionar</span>
-            <span className="sm:hidden">Upload</span>
           </button>
 
           {/* Cloud Info Button */}
           <button
             id="btn-cloud-info"
             onClick={onOpenCloudInfo}
-            className="p-1 sm:px-2.5 sm:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 text-[11px] font-medium flex items-center gap-1 transition-colors"
-            title="Nuvem Pública"
+            className="h-9 w-9 rounded-xl bg-slate-900/90 border border-slate-800 text-sky-400 flex items-center justify-center transition-all active:scale-95 hover:border-slate-700"
+            title="Armazenamento em Nuvem"
           >
-            <Cloud className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Nuvem</span>
+            <Cloud className="w-4 h-4" />
           </button>
         </div>
       </div>
