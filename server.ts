@@ -195,7 +195,13 @@ function getPads(): PadRecord[] {
 }
 
 function savePads(pads: PadRecord[]): void {
-  fs.writeFileSync(padsFilePath, JSON.stringify(pads, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(padsFilePath, JSON.stringify(pads, null, 2), 'utf-8');
+    const publicPadsPath = path.join(process.cwd(), 'public', 'pads.json');
+    fs.writeFileSync(publicPadsPath, JSON.stringify(pads, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving pads file:', err);
+  }
 }
 
 // Ensure initial seed
@@ -394,6 +400,14 @@ app.put('/api/pads/:id', (req, res) => {
       ...req.body,
       id // preserve ID
     };
+
+    if (req.body.musicalKey !== undefined) {
+      updated.musicalKey = req.body.musicalKey ? req.body.musicalKey : undefined;
+    }
+    if (req.body.hotkey !== undefined) {
+      updated.hotkey = req.body.hotkey ? req.body.hotkey : undefined;
+    }
+
     currentPads[index] = updated;
     savePads(currentPads);
 

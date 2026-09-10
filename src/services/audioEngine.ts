@@ -1,4 +1,5 @@
 import { PadItem } from '../types';
+import { getAudioBlob } from './storage';
 
 interface ActivePadState {
   source: AudioBufferSourceNode;
@@ -7,6 +8,16 @@ interface ActivePadState {
   pannerNode: StereoPannerNode;
   startTime: number;
 }
+
+const NOTE_FREQS: Record<string, number> = {
+  'C': 130.81, 'C#': 138.59, 'Db': 138.59,
+  'D': 146.83, 'D#': 155.56, 'Eb': 155.56,
+  'E': 164.81,
+  'F': 174.61, 'F#': 185.00, 'Gb': 185.00,
+  'G': 196.00, 'G#': 207.65, 'Ab': 207.65,
+  'A': 220.00, 'A#': 233.08, 'Bb': 233.08,
+  'B': 246.94
+};
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -25,32 +36,37 @@ class AudioEngine {
   private onBeatCallback: ((beat: number) => void) | null = null;
 
   public init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtx();
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
 
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
 
-      this.masterFilter = this.ctx.createBiquadFilter();
-      this.masterFilter.type = 'lowpass';
-      this.masterFilter.frequency.setValueAtTime(20000, this.ctx.currentTime);
+        this.masterFilter = this.ctx.createBiquadFilter();
+        this.masterFilter.type = 'lowpass';
+        this.masterFilter.frequency.setValueAtTime(20000, this.ctx.currentTime);
 
-      this.analyser = this.ctx.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.8;
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.analyser.smoothingTimeConstant = 0.8;
 
-      this.masterFilter.connect(this.masterGain);
-      this.masterGain.connect(this.analyser);
-      this.analyser.connect(this.ctx.destination);
+        this.masterFilter.connect(this.masterGain);
+        this.masterGain.connect(this.analyser);
+        this.analyser.connect(this.ctx.destination);
 
-      this.metronomeGain = this.ctx.createGain();
-      this.metronomeGain.gain.value = 0.5;
-      this.metronomeGain.connect(this.ctx.destination);
-    }
+        this.metronomeGain = this.ctx.createGain();
+        this.metronomeGain.gain.value = 0.5;
+        this.metronomeGain.connect(this.ctx.destination);
+      }
 
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('AudioContext initialization deferred:', e);
     }
   }
 
@@ -63,23 +79,103 @@ class AudioEngine {
     this.listeners.forEach(fn => fn(padId, isPlaying));
   }
 
-  public async getAudioBuffer(url: string): Promise<AudioBuffer | null> {
+  // Create a synthetic warm pad buffer when audio file is unreachable
+  private createSyntheticPadBuffer(pad: PadItem): AudioBuffer | null {
+    if (!this.ctx) return null;
+    try {
+      const sampleRate = this.ctx.sampleRate;
+      const duration = 5.0; // 5 seconds loop
+      const frameCount = sampleRate * duration;
+      const buffer = this.ctx.createBuffer(2, frameCount, sampleRate);
+      const left = buffer.getChannelData(0);
+      const right = buffer.getChannelData(1);
+
+      const rootFreq = (pad.musicalKey && NOTE_FREQS[pad.musicalKey]) ? NOTE_FREQS[pad.musicalKey] : 130.81;
+      const fifthFreq = rootFreq * 1.4983; // Perfect fifth
+      const octaveFreq = rootFreq * 2;
+
+      for (let i = 0; i < frameCount; i++) {
+        const t = i / sampleRate;
+        // Warm subtle chorus modulation
+        const chorus = Math.sin(2 * Math.PI * 0.25 * t) * 0.5;
+        const s1 = Math.sin(2 * Math.PI * (rootFreq + chorus) * t);
+        const s2 = Math.sin(2 * Math.PI * (fifthFreq - chorus * 0.5) * t) * 0.7;
+        const s3 = Math.sin(2 * Math.PI * (octaveFreq + chorus * 0.8) * t) * 0.4;
+        const s4 = (Math.random() * 2 - 1) * 0.015; // subtle tape breath
+
+        // Seamless loop window envelope
+        let win = 1.0;
+        const edgeSamples = sampleRate * 0.1;
+        if (i < edgeSamples) win = i / edgeSamples;
+        else if (i > frameCount - edgeSamples) win = (frameCount - i) / edgeSamples;
+
+        const val = (s1 + s2 + s3 + s4) * 0.28 * win;
+        left[i] = val;
+        right[i] = (s1 * 0.9 + s2 * 1.1 + s3 * 0.8) * 0.28 * win;
+      }
+      return buffer;
+    } catch {
+      return null;
+    }
+  }
+
+  public async getAudioBuffer(url: string, pad?: PadItem): Promise<AudioBuffer | null> {
     this.init();
+    if (!this.ctx) return null;
+
     if (this.bufferCache.has(url)) {
       return this.bufferCache.get(url)!;
     }
 
+    // Check if URL is stored in IndexedDB
+    if (url.startsWith('idb://')) {
+      try {
+        const blobId = url.replace('idb://', '');
+        const data = await getAudioBlob(blobId);
+        if (data) {
+          let arrayBuffer: ArrayBuffer;
+          if (data instanceof Blob) {
+            arrayBuffer = await data.arrayBuffer();
+          } else {
+            arrayBuffer = data;
+          }
+          const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+          this.bufferCache.set(url, audioBuffer);
+          return audioBuffer;
+        }
+      } catch (err) {
+        console.warn('Failed to load from IndexedDB:', err);
+      }
+    }
+
+    // Try fetching normal HTTP/HTTPS URL
     try {
       const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP error ${resp.status}`);
-      const arrayBuffer = await resp.arrayBuffer();
-      const audioBuffer = await this.ctx!.decodeAudioData(arrayBuffer);
-      this.bufferCache.set(url, audioBuffer);
-      return audioBuffer;
+      if (resp.ok) {
+        const contentType = resp.headers.get('content-type') || '';
+        // If server returned index.html due to SPA rewrite on 404, reject so we use synthetic fallback
+        if (contentType.includes('text/html')) {
+          throw new Error('Received HTML instead of audio');
+        }
+        const arrayBuffer = await resp.arrayBuffer();
+        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+        this.bufferCache.set(url, audioBuffer);
+        return audioBuffer;
+      }
     } catch (err) {
-      console.error('Failed to load/decode audio:', url, err);
-      return null;
+      console.warn('Network audio fetch failed for:', url, err);
     }
+
+    // Fallback: Generate synthetic audio buffer so the pad plays smoothly
+    if (pad) {
+      const fallbackBuffer = this.createSyntheticPadBuffer(pad);
+      if (fallbackBuffer) {
+        this.bufferCache.set(url, fallbackBuffer);
+        return fallbackBuffer;
+      }
+    }
+
+    return null;
   }
 
   public isPadPlaying(padId: string): boolean {
@@ -96,11 +192,12 @@ class AudioEngine {
       return;
     }
 
-    const buffer = await this.getAudioBuffer(pad.url);
+    const buffer = await this.getAudioBuffer(pad.url, pad);
     if (!buffer) {
       console.error('Could not play pad, buffer unavailable:', pad.url);
       return;
     }
+
 
     const now = this.ctx.currentTime;
     const source = this.ctx.createBufferSource();

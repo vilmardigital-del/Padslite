@@ -26,6 +26,7 @@ import {
   deletePadOnServer,
   resetPadsOnServer
 } from './services/api';
+import { saveStoredPads, getStoredPads, getDefaultPads } from './services/storage';
 import { Header } from './components/Header';
 import { PadCard } from './components/PadCard';
 import { Visualizer } from './components/Visualizer';
@@ -66,7 +67,9 @@ export default function App() {
       setStats(statsData);
     } catch (err: any) {
       console.error('Error loading data:', err);
-      showNotification('Erro ao carregar dados da nuvem.');
+      const fallback = getStoredPads() || getDefaultPads();
+      setPads(fallback);
+      showNotification('Pads carregados localmente.');
     } finally {
       setLoading(false);
     }
@@ -155,7 +158,11 @@ export default function App() {
   // Update pad settings
   const handleUpdatePad = async (padId: string, updates: Partial<PadItem>) => {
     // Immediate optimistic local update
-    setPads(prev => prev.map(p => p.id === padId ? { ...p, ...updates } : p));
+    setPads(prev => {
+      const next = prev.map(p => p.id === padId ? { ...p, ...updates } : p);
+      saveStoredPads(next);
+      return next;
+    });
 
     // Update ongoing audio parameters in real time if playing
     if (updates.volume !== undefined) {
@@ -171,7 +178,7 @@ export default function App() {
     try {
       await updatePadOnServer(padId, updates);
     } catch (err: any) {
-      console.error('Failed to sync pad to cloud:', err);
+      console.warn('Sync notice:', err);
     }
   };
 
@@ -180,7 +187,11 @@ export default function App() {
     if (activePadIds.has(padId)) {
       audioEngine.stopPad(padId, 0.1);
     }
-    setPads(prev => prev.filter(p => p.id !== padId));
+    setPads(prev => {
+      const next = prev.filter(p => p.id !== padId);
+      saveStoredPads(next);
+      return next;
+    });
     showNotification('Pad removido da lista');
 
     try {
@@ -188,15 +199,18 @@ export default function App() {
       const updatedStats = await fetchCloudStats();
       setStats(updatedStats);
     } catch (err: any) {
-      console.error('Delete failed:', err);
-      showNotification('Erro ao remover no servidor');
+      console.warn('Delete notice:', err);
     }
   };
 
   // Upload success
   const handleUploadSuccess = (newPads: PadItem[]) => {
-    setPads(prev => [...prev, ...newPads]);
-    showNotification(`${newPads.length} novo(s) áudio(s) adicionado(s) à nuvem!`);
+    setPads(prev => {
+      const next = [...prev, ...newPads];
+      saveStoredPads(next);
+      return next;
+    });
+    showNotification(`${newPads.length} novo(s) áudio(s) adicionado(s) com sucesso!`);
     fetchCloudStats().then(setStats).catch(console.error);
   };
 

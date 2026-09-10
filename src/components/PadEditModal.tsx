@@ -47,13 +47,13 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
     onSave(pad.id, {
       name: name.trim() || pad.name,
       category,
-      musicalKey: musicalKey ? musicalKey : undefined,
-      bpm: bpm ? parseInt(bpm, 10) : undefined,
+      musicalKey: musicalKey.trim() ? musicalKey.trim() : '',
+      bpm: bpm.trim() ? parseInt(bpm.trim(), 10) : undefined,
       color,
       isLoop,
       fadeInTime,
       fadeOutTime,
-      hotkey: hotkey.trim() ? hotkey.trim().toUpperCase()[0] : undefined,
+      hotkey: hotkey.trim() ? hotkey.trim().toUpperCase()[0] : '',
     });
     onClose();
   };

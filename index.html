@@ -1,18 +1,44 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" class="dark" style="background-color: #020617; color: #f8fafc;">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="color-scheme" content="dark" />
     <title>Pads de Áudio em Nuvem</title>
     <meta name="description" content="Lista e reprodutor profissional de pads e loops de áudio com upload e armazenamento em nuvem para uso público." />
     <meta property="og:title" content="Pads de Áudio em Nuvem" />
     <meta property="og:description" content="Lista e reprodutor profissional de pads e loops de áudio com upload e armazenamento em nuvem para uso público." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='11 5 6 9 2 9 2 15 6 15 11 19 11 5'%3E%3C/polygon%3E%3Cpath d='M19.07 4.93a10 10 0 0 1 0 14.14'%3E%3C/path%3E%3Cpath d='M15.54 8.46a5 5 0 0 1 0 7.07'%3E%3C/path%3E%3C/svg%3E" />
+    <style>
+      @keyframes appSpin {
+        to { transform: rotate(360deg); }
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #020617;
+        color: #f8fafc;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-slate-950 text-slate-100">
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #020617; color: #94a3b8; font-family: system-ui, -apple-system, sans-serif;">
+        <div style="width: 42px; height: 42px; border: 3px solid rgba(6,182,212,0.15); border-top-color: #06b6d4; border-radius: 50%; animation: appSpin 0.8s linear infinite;"></div>
+        <p style="margin-top: 14px; font-size: 13px; font-weight: 500; color: #cbd5e1; letter-spacing: 0.02em;">Carregando Pads de Áudio...</p>
+      </div>
+    </div>
+    <noscript>
+      <div style="padding: 24px; text-align: center; color: #f87171; background: #0f172a;">
+        Este aplicativo requer JavaScript ativado para reproduzir os pads de áudio.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
 
