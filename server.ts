@@ -179,18 +179,18 @@ function seedDefaultPads(): PadRecord[] {
 
 function getPads(): PadRecord[] {
   if (!fs.existsSync(padsFilePath)) {
-    return seedDefaultPads();
+    return [];
   }
   try {
     const raw = fs.readFileSync(padsFilePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return seedDefaultPads();
+    if (!Array.isArray(parsed)) {
+      return [];
     }
     return parsed;
   } catch (err) {
-    console.error('Error reading pads.json, re-seeding:', err);
-    return seedDefaultPads();
+    console.error('Error reading pads.json:', err);
+    return [];
   }
 }
 
@@ -449,7 +449,29 @@ app.delete('/api/pads/:id', (req, res) => {
   }
 });
 
-// POST /api/pads/reset - Restore standard 22 cloud pads
+// POST /api/pads/remove-system - Remove all pre-loaded system pads, keeping only custom uploads
+app.post('/api/pads/remove-system', (req, res) => {
+  try {
+    let currentPads = getPads();
+    const customOnly = currentPads.filter(p => p.isCustomUpload === true);
+    savePads(customOnly);
+    res.json({ success: true, message: 'Pads do sistema removidos!', count: customOnly.length, pads: customOnly });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/pads/clear-all - Clear all pads completely
+app.post('/api/pads/clear-all', (req, res) => {
+  try {
+    savePads([]);
+    res.json({ success: true, message: 'Todos os pads foram removidos!', count: 0, pads: [] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/pads/reset - Restore standard 22 cloud pads (optional factory kit)
 app.post('/api/pads/reset', (req, res) => {
   try {
     const pads = seedDefaultPads();

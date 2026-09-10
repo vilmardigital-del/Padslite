@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cloud, Check, Copy, HardDrive, RefreshCw, X, Globe, DownloadCloud, AlertTriangle } from 'lucide-react';
+import { Cloud, Check, Copy, HardDrive, RefreshCw, X, Globe, DownloadCloud, AlertTriangle, Trash2 } from 'lucide-react';
 import { CloudStorageStats, PadItem } from '../types';
 
 interface CloudStorageInfoProps {
@@ -8,6 +8,8 @@ interface CloudStorageInfoProps {
   stats: CloudStorageStats | null;
   pads: PadItem[];
   onResetPads: () => void;
+  onRemoveSystemPads?: () => void;
+  onClearAll?: () => void;
   isResetting: boolean;
 }
 
@@ -17,6 +19,8 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
   stats,
   pads,
   onResetPads,
+  onRemoveSystemPads,
+  onClearAll,
   isResetting,
 }) => {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
@@ -146,41 +150,84 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
             </div>
           </div>
 
-          {/* Factory Reset Section */}
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-            <div>
-              <h4 className="font-semibold text-slate-200">Restaurar Kit Original de 22 Pads</h4>
-              <p className="text-slate-400 text-[11px]">Recria os 22 pads padrões (12 tons de pads worship + 10 ritmos)</p>
-            </div>
-            {!showConfirmReset ? (
-              <button
-                onClick={() => setShowConfirmReset(true)}
-                className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Restaurar Padrão
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowConfirmReset(false)}
-                  className="px-2.5 py-1 text-slate-400 hover:text-white text-xs"
-                >
-                  Cancelar
-                </button>
+          {/* Management & Reset Section */}
+          <div className="pt-3 border-t border-slate-800 space-y-3">
+            {/* Remove System Pads Button (if any system pads exist) */}
+            {pads.some(p => !p.isCustomUpload) && onRemoveSystemPads && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                <div>
+                  <h4 className="font-semibold text-rose-300 text-xs">Remover Pads do Sistema</h4>
+                  <p className="text-slate-400 text-[11px]">Remove todos os 22 pads pré-carregados mantendo apenas seus áudios</p>
+                </div>
                 <button
                   onClick={() => {
-                    onResetPads();
-                    setShowConfirmReset(false);
+                    onRemoveSystemPads();
+                    onClose();
                   }}
-                  disabled={isResetting}
-                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-medium text-xs flex items-center gap-1.5 transition-colors shrink-0"
                 >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  Confirmar Reset
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remover Sistema
                 </button>
               </div>
             )}
+
+            {/* Clear All Pads */}
+            {pads.length > 0 && onClearAll && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+                <div>
+                  <h4 className="font-semibold text-slate-200 text-xs">Limpar Toda a Lista de Pads</h4>
+                  <p className="text-slate-400 text-[11px]">Esvazia a lista para começar com o repertório totalmente limpo</p>
+                </div>
+                <button
+                  onClick={() => {
+                    onClearAll();
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-700 hover:border-rose-500/50 hover:bg-rose-500/10 text-slate-300 hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Limpar Tudo
+                </button>
+              </div>
+            )}
+
+            {/* Optional Factory Restore */}
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <h4 className="font-semibold text-slate-300 text-xs">Restaurar Kit de Demonstração (22 pads)</h4>
+                <p className="text-slate-500 text-[11px]">Recria os pads de exemplo caso queira consultá-los</p>
+              </div>
+              {!showConfirmReset ? (
+                <button
+                  onClick={() => setShowConfirmReset(true)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 text-xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Restaurar Exemplo
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowConfirmReset(false)}
+                    className="px-2.5 py-1 text-slate-400 hover:text-white text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      onResetPads();
+                      setShowConfirmReset(false);
+                    }}
+                    disabled={isResetting}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs flex items-center gap-1"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Confirmar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

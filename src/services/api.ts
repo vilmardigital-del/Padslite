@@ -23,7 +23,7 @@ export async function fetchPads(): Promise<PadItem[]> {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const data = await res.json();
-        if (Array.isArray(data.pads) && data.pads.length > 0) {
+        if (Array.isArray(data.pads)) {
           // If user had local custom pads, preserve them
           if (localPads) {
             const serverIds = new Set(data.pads.map((p: PadItem) => p.id));
@@ -41,8 +41,8 @@ export async function fetchPads(): Promise<PadItem[]> {
     console.warn('Backend API /api/pads unavailable, using client storage / static fallback:', err);
   }
 
-  // Fallback 1: LocalStorage
-  if (localPads && localPads.length > 0) {
+  // Fallback 1: LocalStorage (even if empty [])
+  if (localPads !== null && Array.isArray(localPads)) {
     return localPads;
   }
 
@@ -53,7 +53,7 @@ export async function fetchPads(): Promise<PadItem[]> {
       const contentType = staticRes.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const staticPads = await staticRes.json();
-        if (Array.isArray(staticPads) && staticPads.length > 0) {
+        if (Array.isArray(staticPads)) {
           saveStoredPads(staticPads);
           return staticPads;
         }
@@ -63,7 +63,7 @@ export async function fetchPads(): Promise<PadItem[]> {
     // continue to default pads
   }
 
-  // Fallback 3: In-memory default pads
+  // Fallback 3: In-memory default pads (empty)
   const defaults = getDefaultPads();
   saveStoredPads(defaults);
   return defaults;
@@ -246,6 +246,32 @@ export async function deletePadOnServer(id: string): Promise<void> {
   } catch {
     // non-blocking
   }
+}
+
+// Remove all pre-loaded system pads, keeping only user's custom uploads
+export async function removeSystemPads(): Promise<PadItem[]> {
+  const current = getStoredPads() || [];
+  const customOnly = current.filter(p => p.isCustomUpload === true);
+  saveStoredPads(customOnly);
+
+  try {
+    await fetch('/api/pads/remove-system', { method: 'POST' });
+  } catch {
+    // non-blocking
+  }
+
+  return customOnly;
+}
+
+// Clear all pads completely (clean slate)
+export async function clearAllPads(): Promise<PadItem[]> {
+  clearStoredPads();
+  try {
+    await fetch('/api/pads/clear-all', { method: 'POST' });
+  } catch {
+    // non-blocking
+  }
+  return [];
 }
 
 export async function resetPadsOnServer(): Promise<PadItem[]> {

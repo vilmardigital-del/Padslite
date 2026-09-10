@@ -91,19 +91,19 @@ export const Visualizer: React.FC<VisualizerProps> = ({ activeCount }) => {
   }, [activeCount]);
 
   return (
-    <div id="audio-visualizer-container" className="relative w-full h-16 rounded-xl overflow-hidden border border-slate-700/50 shadow-inner bg-slate-900/60">
+    <div id="audio-visualizer-container" className="relative w-full h-10 sm:h-11 rounded-lg overflow-hidden border border-slate-700/50 shadow-inner bg-slate-900/60">
       <canvas
         ref={canvasRef}
         width={800}
-        height={64}
+        height={44}
         className="w-full h-full block"
       />
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-4 text-xs font-medium text-slate-400">
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-3 text-[11px] font-medium text-slate-400">
         <span className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${activeCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-          {activeCount > 0 ? `${activeCount} áudio(s) em reprodução` : 'Pronto para reproduzir'}
+          <span className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+          {activeCount > 0 ? `${activeCount} áudio(s) em reprodução` : 'Pronto'}
         </span>
-        <span className="font-mono text-[11px] text-slate-400">
+        <span className="font-mono text-[10px] text-slate-500 hidden sm:inline">
           Nuvem Pública • 44.1 kHz
         </span>
       </div>

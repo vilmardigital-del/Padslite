@@ -15,7 +15,9 @@ import {
   ArrowRightLeft,
   Filter,
   Flame,
-  Cloud
+  Cloud,
+  UploadCloud,
+  Trash2
 } from 'lucide-react';
 import { PadItem, CloudStorageStats } from './types';
 import { audioEngine } from './services/audioEngine';
@@ -24,7 +26,9 @@ import {
   fetchCloudStats,
   updatePadOnServer,
   deletePadOnServer,
-  resetPadsOnServer
+  resetPadsOnServer,
+  removeSystemPads,
+  clearAllPads
 } from './services/api';
 import { saveStoredPads, getStoredPads, getDefaultPads } from './services/storage';
 import { Header } from './components/Header';
@@ -62,12 +66,22 @@ export default function App() {
   const loadData = async () => {
     try {
       setLoading(true);
+      // Clean local storage of system pads if user had them cached
+      const localPads = getStoredPads();
+      if (localPads && localPads.some(p => !p.isCustomUpload)) {
+        const customOnly = localPads.filter(p => p.isCustomUpload);
+        saveStoredPads(customOnly);
+      }
+
       const [padsData, statsData] = await Promise.all([fetchPads(), fetchCloudStats()]);
-      setPads(padsData);
+      // Filter out system pads to strictly respect user's request for own pads only
+      const customOnly = padsData.filter(p => p.isCustomUpload);
+      setPads(customOnly);
+      saveStoredPads(customOnly);
       setStats(statsData);
     } catch (err: any) {
       console.error('Error loading data:', err);
-      const fallback = getStoredPads() || getDefaultPads();
+      const fallback = (getStoredPads() || []).filter(p => p.isCustomUpload);
       setPads(fallback);
       showNotification('Pads carregados localmente.');
     } finally {
@@ -231,6 +245,34 @@ export default function App() {
     }
   };
 
+  // Remove system-added pads (leaves only user's own pads)
+  const handleRemoveSystemPads = async () => {
+    audioEngine.stopAll(0.1);
+    try {
+      const customOnly = await removeSystemPads();
+      setPads(customOnly);
+      showNotification('Pads do sistema removidos com sucesso!');
+      const updatedStats = await fetchCloudStats();
+      setStats(updatedStats);
+    } catch {
+      showNotification('Erro ao remover pads do sistema');
+    }
+  };
+
+  // Clear all pads completely
+  const handleClearAllPads = async () => {
+    audioEngine.stopAll(0.1);
+    try {
+      await clearAllPads();
+      setPads([]);
+      showNotification('Todos os pads foram removidos.');
+      const updatedStats = await fetchCloudStats();
+      setStats(updatedStats);
+    } catch {
+      showNotification('Erro ao limpar pads');
+    }
+  };
+
   // Filtered Pads
   const filteredPads = useMemo(() => {
     return pads.filter(pad => {
@@ -292,19 +334,19 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-2.5 sm:py-3.5 space-y-2.5 sm:space-y-3">
         {/* Top Control Bar: Audio Visualizer & Metronome */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3 items-center">
           <div className="lg:col-span-2">
             <Visualizer activeCount={activePadIds.size} />
           </div>
-          <div className="flex items-center justify-between lg:justify-end gap-3">
+          <div className="flex items-center justify-between lg:justify-end gap-2">
             <Metronome />
           </div>
         </div>
 
         {/* Toolbar & Filters */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-sm space-y-3.5">
+        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 sm:p-3 shadow-sm space-y-2.5">
           {/* Search, Categories, and Mode Toggle */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Search Input */}
@@ -328,8 +370,8 @@ export default function App() {
               )}
             </div>
 
-            {/* Crossfade Toggle for Worship */}
-            <div className="flex items-center gap-3">
+            {/* Crossfade Toggle and Action Buttons */}
+            <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 cursor-pointer bg-slate-950/70 border border-slate-800 px-3 py-1.5 rounded-xl text-xs select-none">
                 <input
                   type="checkbox"
@@ -338,16 +380,30 @@ export default function App() {
                   className="w-3.5 h-3.5 rounded text-cyan-400 bg-slate-800 border-slate-700 focus:ring-cyan-400"
                 />
                 <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-slate-300 font-medium">Crossfade Suave entre Tons</span>
+                <span className="text-slate-300 font-medium hidden sm:inline">Crossfade Suave</span>
               </label>
 
-              {/* Reset or Add Quick Shortcut */}
+              {/* If any system pad exists, show 1-click removal */}
+              {pads.some(p => !p.isCustomUpload) && (
+                <button
+                  id="btn-remove-system-pads"
+                  onClick={handleRemoveSystemPads}
+                  className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 border border-rose-500/30 transition-colors cursor-pointer"
+                  title="Remover pads padrão do sistema"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remover Pads do Sistema</span>
+                </button>
+              )}
+
+              {/* Add Custom Audio */}
               <button
+                id="btn-upload-pads"
                 onClick={() => setIsUploadOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors"
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-cyan-500/20 transition-colors cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Subir Arquivo</span>
+                <Plus className="w-4 h-4" />
+                <span>Adicionar Áudios</span>
               </button>
             </div>
           </div>
@@ -452,14 +508,39 @@ export default function App() {
         {loading ? (
           <div className="py-24 text-center space-y-3">
             <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-slate-400">Carregando lista de pads na nuvem...</p>
+            <p className="text-sm text-slate-400">Carregando lista de pads...</p>
+          </div>
+        ) : pads.length === 0 ? (
+          <div className="py-16 sm:py-20 px-6 text-center max-w-lg mx-auto bg-slate-900/40 rounded-2xl border border-slate-800/80 shadow-xl space-y-4 my-4">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto">
+              <UploadCloud className="w-7 h-7" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-base sm:text-lg font-bold text-slate-100">Pronto para seus próprios pads!</h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Os pads padrão do sistema foram removidos. Adicione seus próprios arquivos de áudio (MP3, WAV, M4A, OGG) para criar seu repertório personalizado.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <button
+                id="btn-add-first-pads"
+                onClick={() => setIsUploadOpen(true)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Adicionar Meus Primeiros Áudios</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Arraste ou selecione múltiplos arquivos. O sistema detecta tom e BPM automaticamente!
+            </p>
           </div>
         ) : filteredPads.length === 0 ? (
           <div className="py-20 text-center space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800">
             <Music className="w-10 h-10 text-slate-600 mx-auto" />
             <h3 className="font-semibold text-slate-300">Nenhum pad encontrado</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Nenhum pad corresponde aos filtros atuais. Tente limpar a busca ou adicione novos arquivos de áudio à nuvem.
+              Nenhum pad corresponde aos filtros atuais. Tente limpar a busca ou adicione novos arquivos de áudio.
             </p>
             <button
               onClick={() => {
@@ -509,6 +590,8 @@ export default function App() {
         stats={stats}
         pads={pads}
         onResetPads={handleResetPads}
+        onRemoveSystemPads={handleRemoveSystemPads}
+        onClearAll={handleClearAllPads}
         isResetting={isResetting}
       />
 

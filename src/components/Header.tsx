@@ -43,44 +43,29 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="w-full bg-slate-950/90 border-b border-slate-800 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Brand & Cloud Status */}
-        <div className="flex items-center justify-between md:justify-start gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/25">
-              <Music2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-slate-100 text-lg tracking-tight">
-                  Pads de Áudio em Nuvem
-                </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  Nuvem Ativa ({totalPadsCount} pads)
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Player ao vivo, loops e pads para ministração e apresentações
-              </p>
-            </div>
+    <header className="w-full bg-slate-950/95 border-b border-slate-800/80 backdrop-blur-md sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
+        {/* Brand & Badge */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-md shadow-cyan-500/20 shrink-0">
+            <Music2 className="w-4 h-4" />
           </div>
-
-          <button
-            onClick={onOpenCloudInfo}
-            className="md:hidden p-2 rounded-xl bg-slate-800 text-cyan-300 border border-slate-700 flex items-center gap-1 text-xs"
-            title="Nuvem Pública"
-          >
-            <Cloud className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <h1 className="font-bold text-slate-100 text-sm sm:text-base tracking-tight whitespace-nowrap">
+              Pads de Áudio
+            </h1>
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 whitespace-nowrap font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="hidden xs:inline">Nuvem:</span> {totalPadsCount} pads
+            </span>
+          </div>
         </div>
 
-        {/* Master Audio Controls & Action Buttons */}
-        <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
+        {/* Master Controls & Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap ml-auto">
           {/* Master Volume Slider */}
-          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-1.5">
-            <Volume2 className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-lg px-2 sm:px-2.5 py-1" title={`Volume Master: ${Math.round(masterVolume * 100)}%`}>
+            <Volume2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <input
               type="range"
               min="0"
@@ -88,10 +73,9 @@ export const Header: React.FC<HeaderProps> = ({
               step="0.01"
               value={masterVolume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="w-20 sm:w-28 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-              title={`Volume Master: ${Math.round(masterVolume * 100)}%`}
+              className="w-16 sm:w-20 accent-cyan-400 h-1 bg-slate-800 rounded cursor-pointer"
             />
-            <span className="text-[11px] font-mono text-slate-400 w-8 text-right">
+            <span className="text-[10px] font-mono text-slate-400 w-7 text-right">
               {Math.round(masterVolume * 100)}%
             </span>
           </div>
@@ -100,24 +84,24 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowFilterControl(!showFilterControl)}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              className={`px-2 sm:px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition-colors ${
                 masterFilter < 19000
                   ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                   : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:text-slate-200'
               }`}
-              title="Filtro Master de Frequência (Tone Cutoff)"
+              title="Filtro Master de Frequência"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <SlidersHorizontal className="w-3 h-3" />
               <span className="hidden sm:inline">Tom:</span>
-              <span className="font-mono">
+              <span className="font-mono text-[10px]">
                 {masterFilter >= 19000 ? 'Aberto' : `${Math.round(masterFilter / 1000)}k`}
               </span>
             </button>
 
             {showFilterControl && (
-              <div className="absolute right-0 top-full mt-2 w-52 p-3 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl z-30 space-y-2">
-                <div className="flex justify-between text-xs text-slate-300">
-                  <span>Corte de Frequência</span>
+              <div className="absolute right-0 top-full mt-1.5 w-48 p-2.5 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl z-50 space-y-2">
+                <div className="flex justify-between text-[11px] text-slate-300">
+                  <span>Corte Tom</span>
                   <span className="font-mono text-cyan-400">{Math.round(masterFilter)} Hz</span>
                 </div>
                 <input
@@ -127,13 +111,13 @@ export const Header: React.FC<HeaderProps> = ({
                   step="100"
                   value={masterFilter}
                   onChange={(e) => handleFilterChange(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                  className="w-full accent-cyan-400 h-1 bg-slate-800 rounded cursor-pointer"
                 />
                 <button
                   onClick={() => handleFilterChange(20000)}
-                  className="w-full py-1 text-[11px] text-slate-400 hover:text-white bg-slate-800/60 rounded"
+                  className="w-full py-0.5 text-[10px] text-slate-400 hover:text-white bg-slate-800/60 rounded"
                 >
-                  Resetar para Aberto
+                  Resetar (Aberto)
                 </button>
               </div>
             )}
@@ -144,25 +128,26 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-fade-out-all"
             onClick={onMasterFadeOut}
             disabled={activeCount === 0 || isFadingOut}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+            className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all ${
               activeCount > 0
-                ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 shadow-sm cursor-pointer'
+                ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 cursor-pointer'
                 : 'bg-slate-900/60 text-slate-600 border border-slate-800/50 cursor-not-allowed'
             }`}
-            title="Fade Out Geral: finaliza suavemente todos os pads que estão tocando"
+            title="Fade Out Geral"
           >
-            <Square className="w-3.5 h-3.5 fill-current" />
-            <span>Fade Out Geral</span>
+            <Square className="w-3 h-3 fill-current" />
+            <span className="hidden xs:inline">Fade Out</span>
+            <span className="xs:hidden">Parar</span>
           </button>
 
           {/* Upload Button */}
           <button
             id="btn-open-upload"
             onClick={onOpenUpload}
-            className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+            className="px-2.5 sm:px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-semibold flex items-center gap-1 shadow-sm shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
           >
-            <UploadCloud className="w-4 h-4" />
-            <span className="hidden sm:inline">Adicionar Áudios</span>
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Adicionar</span>
             <span className="sm:hidden">Upload</span>
           </button>
 
@@ -170,11 +155,11 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="btn-cloud-info"
             onClick={onOpenCloudInfo}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 text-xs font-medium transition-colors"
-            title="Gerenciar Nuvem e Links Públicos"
+            className="p-1 sm:px-2.5 sm:py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 text-[11px] font-medium flex items-center gap-1 transition-colors"
+            title="Nuvem Pública"
           >
-            <Cloud className="w-4 h-4" />
-            <span>Nuvem Pública</span>
+            <Cloud className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Nuvem</span>
           </button>
         </div>
       </div>

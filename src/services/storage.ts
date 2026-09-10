@@ -97,10 +97,11 @@ export function getStoredPads(): PadItem[] | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Failed to parse localStorage pads:', e);
@@ -118,17 +119,30 @@ export function saveStoredPads(pads: PadItem[]): void {
   }
 }
 
-// Clear stored pads and reset to default
+// Remove system pads keeping only custom uploads
+export function removeSystemPadsFromStorage(): PadItem[] {
+  const current = getStoredPads() || [];
+  const customOnly = current.filter(p => p.isCustomUpload === true);
+  saveStoredPads(customOnly);
+  return customOnly;
+}
+
+// Clear stored pads
 export function clearStoredPads(): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   } catch (e) {
     console.warn('Failed to clear localStorage pads:', e);
   }
 }
 
-// Memory fallback of default pads
+// Default pads: now empty so user can add their own pads
 export function getDefaultPads(): PadItem[] {
+  return [];
+}
+
+// Factory example pads (optional recovery)
+export function getFactoryPads(): PadItem[] {
   return JSON.parse(JSON.stringify(DEFAULT_PADS));
 }
