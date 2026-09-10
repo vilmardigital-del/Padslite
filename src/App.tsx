@@ -58,6 +58,98 @@ export default function App() {
   const [editingPad, setEditingPad] = useState<PadItem | null>(null);
   const [stats, setStats] = useState<CloudStorageStats | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fullscreen controllers with multi-browser support
+  const requestAppFullscreen = useCallback(() => {
+    try {
+      const doc = document as any;
+      const docEl = document.documentElement as any;
+      if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(() => {});
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else if (docEl.mozRequestFullScreen) {
+          docEl.mozRequestFullScreen();
+        } else if (docEl.msRequestFullscreen) {
+          docEl.msRequestFullscreen();
+        }
+      }
+    } catch {
+      // Handled silently
+    }
+  }, []);
+
+  const exitAppFullscreen = useCallback(() => {
+    try {
+      const doc = document as any;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) {
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          doc.msExitFullscreen();
+        }
+      }
+    } catch {
+      // Handled silently
+    }
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const doc = document as any;
+    const isCurrentlyFull = Boolean(
+      doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement
+    );
+    if (isCurrentlyFull) {
+      exitAppFullscreen();
+    } else {
+      requestAppFullscreen();
+    }
+  }, [requestAppFullscreen, exitAppFullscreen]);
+
+  // Fullscreen state listener and auto-fullscreen on open / first user interaction
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const doc = document as any;
+      setIsFullscreen(Boolean(
+        doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement
+      ));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    // Attempt fullscreen immediately upon load
+    requestAppFullscreen();
+
+    // Standard browsers require a user interaction gesture to enter fullscreen.
+    // Trigger fullscreen automatically on the first touch or click on screen!
+    const triggerFullscreenOnFirstGesture = () => {
+      const doc = document as any;
+      if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+        requestAppFullscreen();
+      }
+    };
+
+    window.addEventListener('pointerdown', triggerFullscreenOnFirstGesture, { once: true, passive: true });
+    window.addEventListener('touchstart', triggerFullscreenOnFirstGesture, { once: true, passive: true });
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      window.removeEventListener('pointerdown', triggerFullscreenOnFirstGesture);
+      window.removeEventListener('touchstart', triggerFullscreenOnFirstGesture);
+    };
+  }, [requestAppFullscreen]);
   const [notification, setNotification] = useState<string | null>(null);
 
   const showNotification = (msg: string) => {
@@ -174,6 +266,24 @@ export default function App() {
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Bloquear atualização da página no F11 e redirecionar para tela cheia controlada pelo aplicativo
+      if (e.key === 'F11' || e.code === 'F11') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFullscreen();
+        return;
+      }
+
+      // Bloquear atualização acidental por F5, Ctrl+R ou Cmd+R durante o uso/performance
+      if (
+        e.key === 'F5' ||
+        ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       // Don't trigger if user is typing in input or select
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         return;
@@ -193,9 +303,9 @@ export default function App() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pads, handleTogglePad, handleMasterFadeOut]);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [pads, handleTogglePad, handleMasterFadeOut, toggleFullscreen]);
 
   // Update pad settings
   const handleUpdatePad = async (padId: string, updates: Partial<PadItem>) => {
@@ -354,7 +464,10 @@ export default function App() {
   }, [pads, handleUpdatePad]);
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+    <div
+      className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black notranslate"
+      translate="no"
+    >
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-cyan-600 text-slate-950 font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200">
@@ -371,6 +484,8 @@ export default function App() {
         onMasterFadeOut={handleMasterFadeOut}
         isFadingOut={isFadingOut}
         totalPadsCount={pads.length}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       {/* Main Container - Mobile & Tablet Pro Dimensions */}

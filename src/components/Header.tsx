@@ -6,7 +6,9 @@ import {
   UploadCloud,
   Square,
   Music2,
-  Sliders
+  Sliders,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { audioEngine } from '../services/audioEngine';
 
@@ -17,6 +19,8 @@ interface HeaderProps {
   onMasterFadeOut: () => void;
   isFadingOut: boolean;
   totalPadsCount: number;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +30,8 @@ export const Header: React.FC<HeaderProps> = ({
   onMasterFadeOut,
   isFadingOut,
   totalPadsCount,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   const [masterVolume, setMasterVolume] = useState(0.85);
   const [masterFilter, setMasterFilter] = useState(20000);
@@ -123,6 +129,27 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Adicionar</span>
+          </button>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            id="btn-toggle-fullscreen"
+            onClick={onToggleFullscreen}
+            className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
+              isFullscreen
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10'
+                : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
+            }`}
+            title={isFullscreen ? 'Sair da Tela Cheia (F11)' : 'Ativar Tela Cheia (F11)'}
+          >
+            {isFullscreen ? (
+              <Minimize className="w-3.5 h-3.5 text-cyan-400" />
+            ) : (
+              <Maximize className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden md:inline font-mono text-[11px]">
+              {isFullscreen ? 'Janela' : 'Tela Cheia'}
+            </span>
           </button>
 
           {/* Cloud Info Button */}
