@@ -580,18 +580,18 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen text-orange-50 flex flex-col font-sans selection:bg-orange-500 selection:text-black notranslate ${
+      className={`min-h-screen text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white notranslate ${
         isVirtualFullscreen ? 'fixed inset-0 z-50 overflow-y-auto w-full h-full' : 'w-full'
       }`}
       style={{
-        background: 'radial-gradient(circle at 10% 15%, rgba(255, 140, 0, 0.42) 0%, transparent 45%), radial-gradient(circle at 90% 85%, rgba(249, 115, 22, 0.38) 0%, transparent 50%), radial-gradient(circle at 50% 40%, rgba(251, 146, 60, 0.22) 0%, transparent 60%), linear-gradient(135deg, #381200 0%, #5e1e00 25%, #882e00 50%, #521900 75%, #290b00 100%)',
+        background: 'radial-gradient(circle at 10% 15%, rgba(59, 130, 246, 0.35) 0%, transparent 45%), radial-gradient(circle at 90% 85%, rgba(37, 99, 235, 0.30) 0%, transparent 50%), radial-gradient(circle at 50% 40%, rgba(96, 165, 250, 0.15) 0%, transparent 60%), linear-gradient(135deg, #04091a 0%, #071330 25%, #0b1f4d 50%, #081636 75%, #030712 100%)',
         backgroundAttachment: 'fixed',
       }}
       translate="no"
     >
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-2xl shadow-[0_0_25px_rgba(249,115,22,0.6)] flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200 border border-amber-300">
+        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 text-white font-black px-4 py-2.5 rounded-2xl shadow-[0_0_25px_rgba(59,130,246,0.6)] flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200 border border-white">
           <CheckCircle className="w-4 h-4 shrink-0" />
           <span className="truncate font-mono">{notification}</span>
         </div>
@@ -620,24 +620,24 @@ export default function App() {
         </div>
 
         {/* Search, Categories & Quick Key Filter */}
-        <div className="bg-[#270b00]/90 border border-orange-500/40 rounded-2xl p-2.5 sm:p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-2.5 backdrop-blur-2xl">
+        <div className="bg-[#081533]/90 border border-blue-500/40 rounded-2xl p-2.5 sm:p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-2.5 backdrop-blur-2xl">
           {/* Search & Main Add Button */}
           <div className="flex items-center gap-2">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-orange-400/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-blue-300/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="search-pads-input"
                 type="text"
                 placeholder="Buscar áudio por nome, tom (C, D, G...), BPM..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-[#170500]/95 border border-orange-500/40 rounded-xl text-xs sm:text-sm text-orange-100 placeholder-orange-400/50 focus:outline-none focus:border-orange-400 transition-colors shadow-inner font-mono"
+                className="w-full pl-9 pr-8 py-2 bg-[#061129]/95 border border-blue-500/40 rounded-xl text-xs sm:text-sm text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-400 transition-colors shadow-inner font-mono"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-orange-400 hover:text-white p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-blue-300 hover:text-white p-1"
                 >
                   ✕
                 </button>
@@ -648,7 +648,7 @@ export default function App() {
             <button
               id="btn-upload-pads"
               onClick={() => setIsUploadOpen(true)}
-              className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer shrink-0"
               title="Adicionar novos arquivos de áudio"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -671,15 +671,15 @@ export default function App() {
 
           {/* Quick Musical Key Filter (Touch Slider with smooth scrolling) */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5 text-xs">
-            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0 font-mono">
-              <Filter className="w-3 h-3 text-orange-400" /> TOM:
+            <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0 font-mono">
+              <Filter className="w-3 h-3 text-blue-400" /> TOM:
             </span>
             <button
               onClick={() => setSelectedKey('all')}
               className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                 selectedKey === 'all'
-                  ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 shadow-[0_0_10px_rgba(249,115,22,0.5)] font-black'
-                  : 'bg-[#1a0600] text-orange-200/80 border border-orange-500/30 hover:text-white hover:border-orange-400'
+                  ? 'bg-gradient-to-r from-blue-500 to-sky-400 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)] font-black border border-white'
+                  : 'bg-[#061129] text-blue-200/80 border border-blue-500/30 hover:text-white hover:border-blue-400'
               }`}
             >
               TODOS
@@ -690,8 +690,8 @@ export default function App() {
                 onClick={() => setSelectedKey(selectedKey === k ? 'all' : k)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                   selectedKey === k
-                    ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 text-slate-950 shadow-[0_0_12px_rgba(249,115,22,0.5)] font-black border border-orange-300'
-                    : 'bg-[#1a0600] text-orange-200 border border-orange-500/30 hover:border-orange-400 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)] font-black border border-white'
+                    : 'bg-[#061129] text-blue-200 border border-blue-500/30 hover:border-blue-400 hover:text-white'
                 }`}
               >
                 {k}
@@ -705,11 +705,11 @@ export default function App() {
               onClick={() => setSelectedCategory('all')}
               className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'all'
-                  ? 'bg-orange-500/30 text-orange-200 border border-orange-400/70 shadow-[0_0_10px_rgba(249,115,22,0.25)]'
-                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
+                  ? 'bg-blue-600/30 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                  : 'bg-[#061129]/80 text-blue-200/70 hover:text-white border border-blue-500/25'
               }`}
             >
-              <Layers className="w-3.5 h-3.5 text-orange-400" />
+              <Layers className="w-3.5 h-3.5 text-blue-400" />
               <span>Todos ({categoryCounts.all})</span>
             </button>
 
@@ -717,11 +717,11 @@ export default function App() {
               onClick={() => setSelectedCategory('worship')}
               className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'worship'
-                  ? 'bg-amber-500/30 text-amber-200 border border-amber-400/70 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
+                  ? 'bg-blue-600/30 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                  : 'bg-[#061129]/80 text-blue-200/70 hover:text-white border border-blue-500/25'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
               <span>Worship ({categoryCounts.worship})</span>
             </button>
 
@@ -729,11 +729,11 @@ export default function App() {
               onClick={() => setSelectedCategory('ritmo')}
               className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'ritmo'
-                  ? 'bg-orange-500/30 text-orange-200 border border-orange-400/70 shadow-[0_0_10px_rgba(249,115,22,0.3)]'
-                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
+                  ? 'bg-blue-600/30 text-white border border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                  : 'bg-[#061129]/80 text-blue-200/70 hover:text-white border border-blue-500/25'
               }`}
             >
-              <Clock className="w-3.5 h-3.5 text-orange-400" />
+              <Clock className="w-3.5 h-3.5 text-blue-400" />
               <span>Ritmos ({categoryCounts.ritmo})</span>
             </button>
 
@@ -741,11 +741,11 @@ export default function App() {
               onClick={() => setSelectedCategory('percussao')}
               className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'percussao'
-                  ? 'bg-amber-600/30 text-amber-200 border border-amber-500/70 shadow-[0_0_10px_rgba(217,119,6,0.3)]'
-                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
+                  ? 'bg-sky-600/30 text-white border border-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.3)]'
+                  : 'bg-[#061129]/80 text-blue-200/70 hover:text-white border border-blue-500/25'
               }`}
             >
-              <Music className="w-3.5 h-3.5 text-amber-400" />
+              <Music className="w-3.5 h-3.5 text-sky-400" />
               <span>Percussão ({categoryCounts.percussao})</span>
             </button>
 
@@ -755,8 +755,8 @@ export default function App() {
               onClick={() => setSelectedCategory('presentation')}
               className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'presentation'
-                  ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 text-slate-950 font-black border border-amber-300 shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                  : 'bg-[#1a0600]/80 text-orange-300 hover:text-white border border-orange-500/30'
+                  ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 text-white font-black border border-white shadow-[0_0_15px_rgba(59,130,246,0.5)]'
+                  : 'bg-[#061129]/80 text-blue-200 hover:text-white border border-blue-500/30'
               }`}
             >
               <ListMusic className="w-3.5 h-3.5" />
@@ -768,11 +768,11 @@ export default function App() {
                 onClick={() => setSelectedCategory('custom')}
                 className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                   selectedCategory === 'custom'
-                    ? 'bg-orange-500/30 text-orange-200 border border-orange-400'
-                    : 'bg-[#1a0600]/80 text-orange-400/70 hover:text-orange-200 border border-orange-500/25'
+                    ? 'bg-blue-600/30 text-white border border-blue-400'
+                    : 'bg-[#061129]/80 text-blue-300/70 hover:text-white border border-blue-500/25'
                 }`}
               >
-                <Cloud className="w-3.5 h-3.5 text-orange-400" />
+                <Cloud className="w-3.5 h-3.5 text-blue-400" />
                 <span>Uploads ({categoryCounts.custom})</span>
               </button>
             )}
@@ -780,8 +780,8 @@ export default function App() {
 
           {/* Quick Launch Banner when on Presentation Tab */}
           {selectedCategory === 'presentation' && (
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-amber-500/15 to-orange-500/20 border border-orange-500/40 text-xs shadow-inner">
-              <span className="text-orange-200 font-mono font-semibold">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-blue-600/20 via-sky-500/15 to-blue-600/20 border border-blue-500/40 text-xs shadow-inner">
+              <span className="text-white font-mono font-semibold">
                 {playlistPads.length} áudio(s) escalado(s) para o palco
               </span>
               <button
@@ -789,7 +789,7 @@ export default function App() {
                 id="btn-launch-presentation-banner"
                 onClick={handleStartPresentation}
                 disabled={playlistPads.length === 0}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-mono font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40 shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-amber-300"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white font-mono font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40 shadow-[0_0_15px_rgba(59,130,246,0.4)] border border-white"
               >
                 <ListMusic className="w-3.5 h-3.5" />
                 <span>Entrar no Palco (Tela Cheia)</span>
@@ -801,34 +801,34 @@ export default function App() {
         {/* Touch Pads Grid - 2 cols on mobile, 3-4 cols on tablet */}
         {loading ? (
           <div className="py-20 text-center space-y-3">
-            <div className="w-9 h-9 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_15px_rgba(249,115,22,0.5)]" />
-            <p className="text-xs font-mono text-orange-300/80">INICIALIZANDO MOTOR DSP...</p>
+            <div className="w-9 h-9 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+            <p className="text-xs font-mono text-blue-200/80">INICIALIZANDO MOTOR DSP...</p>
           </div>
         ) : pads.length === 0 ? (
-          <div className="py-12 sm:py-16 px-4 text-center max-w-md mx-auto bg-[#250b01]/90 rounded-2xl border border-orange-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.6)] space-y-4 my-2 backdrop-blur-xl">
-            <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-400 mx-auto shadow-[0_0_20px_rgba(249,115,22,0.3)]">
+          <div className="py-12 sm:py-16 px-4 text-center max-w-md mx-auto bg-[#081533]/90 rounded-2xl border border-blue-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.6)] space-y-4 my-2 backdrop-blur-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/50 flex items-center justify-center text-blue-400 mx-auto shadow-[0_0_20px_rgba(59,130,246,0.3)]">
               <UploadCloud className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-orange-100 font-mono">SEU KIT DE ÁUDIO</h3>
-              <p className="text-xs text-orange-300/70 leading-relaxed font-sans">
+              <h3 className="text-base font-bold text-white font-mono">SEU KIT DE ÁUDIO</h3>
+              <p className="text-xs text-blue-200/70 leading-relaxed font-sans">
                 Adicione seus arquivos de áudio (MP3, WAV, M4A, OGG) para montar seu kit personalizado de pads para worship, ritmo ou percussão.
               </p>
             </div>
             <button
               id="btn-add-first-pads"
               onClick={() => setIsUploadOpen(true)}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 text-slate-950 font-mono font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(249,115,22,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white font-mono font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>ADICIONAR MEUS ÁUDIOS</span>
             </button>
           </div>
         ) : filteredPads.length === 0 ? (
-          <div className="py-16 text-center space-y-3 bg-[#250b01]/80 rounded-2xl border border-orange-500/30 backdrop-blur-xl">
-            <Music className="w-8 h-8 text-orange-500/60 mx-auto animate-pulse" />
-            <h3 className="font-semibold text-sm text-orange-200 font-mono">Nenhum áudio encontrado</h3>
-            <p className="text-xs text-orange-300/70 max-w-xs mx-auto">
+          <div className="py-16 text-center space-y-3 bg-[#081533]/80 rounded-2xl border border-blue-500/30 backdrop-blur-xl">
+            <Music className="w-8 h-8 text-blue-400/60 mx-auto animate-pulse" />
+            <h3 className="font-semibold text-sm text-white font-mono">Nenhum áudio encontrado</h3>
+            <p className="text-xs text-blue-200/70 max-w-xs mx-auto">
               {selectedCategory === 'presentation'
                 ? 'Nenhum áudio foi escalado para o palco ainda. Clique no botão "Palco" nos cards para adicionar.'
                 : 'Tente selecionar outro tom ou limpar a busca.'}
@@ -839,7 +839,7 @@ export default function App() {
                 setSelectedCategory('all');
                 setSelectedKey('all');
               }}
-              className="px-4 py-2 text-xs font-mono font-bold rounded-xl bg-[#3b1502] text-orange-200 border border-orange-500/40 hover:border-orange-400 active:scale-95 transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-mono font-bold rounded-xl bg-[#0d224d] text-white border border-blue-500/40 hover:border-blue-400 active:scale-95 transition-colors cursor-pointer"
             >
               VER TODOS OS ÁUDIOS
             </button>

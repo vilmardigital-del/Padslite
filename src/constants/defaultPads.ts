@@ -158,7 +158,7 @@ export const DEFAULT_PADS: PadItem[] = [
     originalFileName: 'pad_g.wav',
     fileSize: 529244,
     duration: 6,
-    color: '#f97316',
+    color: '#0284c7',
     isLoop: true,
     volume: 0.8,
     pan: 0,

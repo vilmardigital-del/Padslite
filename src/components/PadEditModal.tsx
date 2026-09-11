@@ -10,10 +10,10 @@ interface PadEditModalProps {
 }
 
 const PRESET_COLORS = [
-  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7',
-  '#ec4899', '#f43f5e', '#ef4444', '#f97316',
-  '#eab308', '#84cc16', '#10b981', '#06b6d4',
-  '#0ea5e9', '#64748b', '#d946ef', '#14b8a6'
+  '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd',
+  '#0284c7', '#0ea5e9', '#38bdf8', '#06b6d4',
+  '#6366f1', '#818cf8', '#4f46e5', '#312e81',
+  '#14b8a6', '#2dd4bf', '#0d9488', '#ffffff'
 ];
 
 export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose, onSave }) => {
@@ -59,20 +59,20 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-[#081533] border border-blue-500/40 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 border-b border-blue-900/60 bg-[#0c1f4a]/90 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="w-4 h-4 rounded-full"
+              className="w-4 h-4 rounded-full border border-white/60 shadow-sm"
               style={{ backgroundColor: color }}
             />
-            <h2 className="font-semibold text-slate-100 text-base">Editar Pad: {pad.name}</h2>
+            <h2 className="font-semibold text-white text-base">Editar Pad: {pad.name}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-1.5 text-blue-300 hover:text-white hover:bg-blue-900/50 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -81,22 +81,22 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs">
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Nome do Pad</label>
+            <label className="block font-medium text-blue-200 mb-1">Nome do Pad</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-[#061129] border border-blue-500/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Categoria</label>
+              <label className="block font-medium text-blue-200 mb-1">Categoria</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[#061129] border border-blue-500/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400"
               >
                 <option value="worship">Pads Contínuos (Worship)</option>
                 <option value="percussao">Percussão & Bateria</option>
@@ -107,11 +107,11 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
             </div>
 
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Tom Musical</label>
+              <label className="block font-medium text-blue-200 mb-1">Tom Musical</label>
               <select
                 value={musicalKey}
                 onChange={(e) => setMusicalKey(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[#061129] border border-blue-500/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400"
               >
                 <option value="">Nenhum / Rítmico</option>
                 {['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B', 'Cm', 'Dm', 'Em', 'Fm', 'Gm', 'Am', 'Bm'].map(k => (
@@ -123,47 +123,47 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-300 mb-1">BPM (Andamento)</label>
+              <label className="block font-medium text-blue-200 mb-1">BPM (Andamento)</label>
               <input
                 type="number"
                 placeholder="Ex: 100"
                 value={bpm}
                 onChange={(e) => setBpm(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[#061129] border border-blue-500/40 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-300 mb-1">Tecla de Atalho</label>
+              <label className="block font-medium text-blue-200 mb-1">Tecla de Atalho</label>
               <input
                 type="text"
                 maxLength={1}
                 placeholder="Ex: 1, Q, A..."
                 value={hotkey}
                 onChange={(e) => setHotkey(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 uppercase font-mono focus:outline-none focus:border-cyan-400"
+                className="w-full bg-[#061129] border border-blue-500/40 rounded-xl px-3 py-2 text-sm text-white uppercase font-mono focus:outline-none focus:border-blue-400"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 bg-slate-800/40 rounded-xl border border-slate-700/50">
+          <div className="flex items-center gap-3 p-3 bg-[#0c1f4a]/50 rounded-xl border border-blue-500/30">
             <input
               type="checkbox"
               id="pad-loop-checkbox"
               checked={isLoop}
               onChange={(e) => setIsLoop(e.target.checked)}
-              className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-400 bg-slate-900 border-slate-700"
+              className="w-4 h-4 rounded text-blue-500 focus:ring-blue-400 bg-[#061129] border-blue-500/40 cursor-pointer"
             />
-            <label htmlFor="pad-loop-checkbox" className="text-slate-200 cursor-pointer text-xs">
+            <label htmlFor="pad-loop-checkbox" className="text-white cursor-pointer text-xs">
               <span className="font-semibold block">Reprodução em Loop Infinito</span>
-              <span className="text-slate-400">O áudio repete continuamente até ser pausado ou trocado</span>
+              <span className="text-blue-200/70">O áudio repete continuamente até ser pausado ou trocado</span>
             </label>
           </div>
 
           {/* Fade In / Fade Out */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-medium text-slate-300 mb-1">
+              <label className="block font-medium text-blue-200 mb-1">
                 Fade In (Entrada): {fadeInTime.toFixed(1)}s
               </label>
               <input
@@ -173,12 +173,12 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
                 step="0.1"
                 value={fadeInTime}
                 onChange={(e) => setFadeInTime(parseFloat(e.target.value))}
-                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                className="w-full accent-blue-400 h-1.5 bg-blue-950 rounded-lg cursor-pointer"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-300 mb-1">
+              <label className="block font-medium text-blue-200 mb-1">
                 Fade Out (Saída): {fadeOutTime.toFixed(1)}s
               </label>
               <input
@@ -188,15 +188,15 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
                 step="0.1"
                 value={fadeOutTime}
                 onChange={(e) => setFadeOutTime(parseFloat(e.target.value))}
-                className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                className="w-full accent-blue-400 h-1.5 bg-blue-950 rounded-lg cursor-pointer"
               />
             </div>
           </div>
 
           {/* Color Picker */}
           <div>
-            <label className="block font-medium text-slate-300 mb-2 flex items-center gap-1.5">
-              <Palette className="w-3.5 h-3.5 text-cyan-400" />
+            <label className="block font-medium text-blue-200 mb-2 flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5 text-blue-400" />
               Cor do Pad
             </label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -204,8 +204,8 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
                 <button
                   key={c}
                   onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-lg transition-transform ${
-                    color === c ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-slate-900' : 'hover:scale-110'
+                  className={`w-7 h-7 rounded-lg transition-transform border border-white/30 cursor-pointer ${
+                    color === c ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#081533]' : 'hover:scale-110'
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -215,16 +215,16 @@ export const PadEditModal: React.FC<PadEditModalProps> = ({ pad, isOpen, onClose
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 flex items-center justify-end gap-2.5 bg-slate-950/40">
+        <div className="p-4 border-t border-blue-900/60 flex items-center justify-end gap-2.5 bg-[#061129]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 text-sm text-blue-300 hover:text-white rounded-xl hover:bg-blue-900/40 transition-colors cursor-pointer"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 text-sm font-semibold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-2 shadow-lg shadow-cyan-500/25"
+            className="px-5 py-2 text-sm font-bold rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white flex items-center gap-2 shadow-lg shadow-blue-500/30 border border-white cursor-pointer active:scale-95 transition-all"
           >
             <Check className="w-4 h-4" />
             Salvar Alterações

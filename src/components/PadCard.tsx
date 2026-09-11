@@ -73,32 +73,32 @@ export const PadCard: React.FC<PadCardProps> = ({
       id={`pad-card-${pad.id}`}
       className={`group relative flex flex-col justify-between rounded-2xl border transition-all duration-200 select-none overflow-hidden touch-manipulation backdrop-blur-md ${
         isPlaying
-          ? 'border-orange-400 bg-gradient-to-b from-[#4d1900] via-[#2f0e01] to-[#1a0600] shadow-[0_0_30px_rgba(249,115,22,0.45)] ring-1 ring-orange-400'
-          : 'border-orange-500/30 bg-[#250b01]/90 hover:border-orange-500/70 hover:shadow-[0_0_15px_rgba(249,115,22,0.2)] active:bg-[#381202]'
+          ? 'border-blue-400 bg-gradient-to-b from-[#123068] via-[#0d224d] to-[#061128] shadow-[0_0_30px_rgba(37,99,235,0.55)] ring-1 ring-blue-300'
+          : 'border-blue-500/30 bg-[#0a1838]/90 hover:border-blue-400/80 hover:shadow-[0_0_18px_rgba(37,99,235,0.25)] active:bg-[#0f285a]'
       }`}
     >
       {/* Pad Top Bar: Tone Key, BPM & Options */}
-      <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between gap-1.5 border-b border-orange-500/15">
+      <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between gap-1.5 border-b border-blue-500/15">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {pad.musicalKey ? (
             <span
-              className="px-2 py-0.5 text-xs font-black font-mono rounded-lg border tracking-wider shadow-[0_0_8px_rgba(249,115,22,0.2)]"
+              className="px-2 py-0.5 text-xs font-black font-mono rounded-lg border tracking-wider shadow-[0_0_8px_rgba(59,130,246,0.2)]"
               style={{
-                backgroundColor: `${pad.color || '#ea580c'}25`,
-                borderColor: `${pad.color || '#ea580c'}70`,
-                color: pad.color || '#fed7aa'
+                backgroundColor: `${pad.color || '#3b82f6'}25`,
+                borderColor: `${pad.color || '#3b82f6'}70`,
+                color: pad.color || '#bfdbfe'
               }}
             >
               {pad.musicalKey}
             </span>
           ) : (
-            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-orange-300 bg-orange-950/60 border border-orange-800/50 rounded-md">
+            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-blue-200 bg-blue-950/60 border border-blue-800/50 rounded-md">
               PAD
             </span>
           )}
 
           {pad.bpm && (
-            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-[#160500] text-orange-200 border border-orange-500/30">
+            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md bg-[#060f26] text-blue-100 border border-blue-500/30">
               {pad.bpm} BPM
             </span>
           )}
@@ -106,7 +106,7 @@ export const PadCard: React.FC<PadCardProps> = ({
 
         <div className="flex items-center gap-1 shrink-0">
           {pad.cloudStored && (
-            <span title="Armazenado na Nuvem" className="text-orange-400 p-0.5">
+            <span title="Armazenado na Nuvem" className="text-blue-300 p-0.5">
               <Cloud className="w-3.5 h-3.5" />
             </span>
           )}
@@ -122,8 +122,8 @@ export const PadCard: React.FC<PadCardProps> = ({
               }}
               className={`px-1.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-90 ${
                 isInPlaylist
-                  ? 'text-slate-950 bg-gradient-to-r from-amber-400 to-orange-400 border border-amber-300 shadow-[0_0_10px_rgba(249,115,22,0.4)]'
-                  : 'text-orange-300/70 hover:text-orange-100 hover:bg-orange-950/60 border border-orange-500/20'
+                  ? 'text-white bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 border border-white shadow-[0_0_10px_rgba(59,130,246,0.5)]'
+                  : 'text-blue-200/80 hover:text-white hover:bg-blue-950/60 border border-blue-500/25'
               }`}
               title={isInPlaylist ? 'Escalado no Palco (clique para remover)' : 'Escalar para Palco'}
             >
@@ -139,26 +139,26 @@ export const PadCard: React.FC<PadCardProps> = ({
                 e.stopPropagation();
                 setShowOptions(!showOptions);
               }}
-              className="p-1 rounded-lg text-orange-400/80 hover:text-white hover:bg-orange-900/40 active:scale-90 transition-all cursor-pointer"
+              className="p-1 rounded-lg text-blue-300 hover:text-white hover:bg-blue-900/40 active:scale-90 transition-all cursor-pointer"
               title="Mais opções"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
 
             {showOptions && (
-              <div className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#200800]/95 backdrop-blur-2xl border border-orange-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-30 py-1 text-xs animate-in fade-in zoom-in-95 text-orange-100">
+              <div className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#0a1838]/98 backdrop-blur-2xl border border-blue-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-30 py-1 text-xs animate-in fade-in zoom-in-95 text-white">
                 <button
                   onClick={handleCopyPublicUrl}
-                  className="w-full text-left px-3 py-2 text-orange-100 hover:bg-orange-900/40 flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-orange-400" />}
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-blue-300" />}
                   {copiedLink ? 'Link Copiado!' : 'Copiar Link'}
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="w-full text-left px-3 py-2 text-orange-100 hover:bg-orange-900/40 flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <Download className="w-3.5 h-3.5 text-orange-400" />
+                  <Download className="w-3.5 h-3.5 text-blue-300" />
                   Baixar Arquivo
                 </button>
                 <button
@@ -167,12 +167,12 @@ export const PadCard: React.FC<PadCardProps> = ({
                     setShowOptions(false);
                     onEditPad(pad);
                   }}
-                  className="w-full text-left px-3 py-2 text-orange-100 hover:bg-orange-900/40 flex items-center gap-2 cursor-pointer font-medium"
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
                 >
-                  <Edit2 className="w-3.5 h-3.5 text-orange-400" />
+                  <Edit2 className="w-3.5 h-3.5 text-blue-300" />
                   Editar Nome/Tom
                 </button>
-                <div className="h-px bg-orange-900/60 my-1" />
+                <div className="h-px bg-blue-900/60 my-1" />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -197,43 +197,43 @@ export const PadCard: React.FC<PadCardProps> = ({
         onClick={() => onTogglePlay(pad)}
         className="w-full px-3 py-4 sm:py-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-[0.96] group-hover:bg-white/[0.02]"
       >
-        {/* Futuristic Studio Drum-Pad Trigger */}
+        {/* Studio Drum-Pad Trigger */}
         <div
           className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center transition-all duration-200 ${
             isPlaying
-              ? 'scale-105 shadow-[0_0_25px_rgba(249,115,22,0.8)] ring-2 ring-orange-300'
-              : 'shadow-md border border-orange-500/40 hover:border-orange-400 hover:shadow-[0_0_12px_rgba(249,115,22,0.3)]'
+              ? 'scale-105 shadow-[0_0_25px_rgba(59,130,246,0.85)] ring-2 ring-white'
+              : 'shadow-md border border-blue-500/40 hover:border-blue-400 hover:shadow-[0_0_12px_rgba(59,130,246,0.35)]'
           }`}
           style={{
-            backgroundColor: isPlaying ? '#ea580c' : '#331201',
-            color: isPlaying ? '#ffffff' : pad.color || '#fb923c'
+            backgroundColor: isPlaying ? '#2563eb' : '#0d224d',
+            color: isPlaying ? '#ffffff' : pad.color || '#93c5fd'
           }}
         >
           {isLoading ? (
-            <Loader2 className="w-7 h-7 animate-spin text-orange-200" />
+            <Loader2 className="w-7 h-7 animate-spin text-blue-200" />
           ) : isPlaying ? (
             <Square className="w-7 h-7 fill-current animate-pulse" />
           ) : (
-            <Play className="w-7 h-7 fill-current ml-0.5 text-orange-300" />
+            <Play className="w-7 h-7 fill-current ml-0.5 text-blue-200" />
           )}
         </div>
 
-        <h3 className="mt-2.5 font-bold text-xs sm:text-sm text-orange-100 line-clamp-2 max-w-[95%] tracking-tight font-mono">
+        <h3 className="mt-2.5 font-bold text-xs sm:text-sm text-white line-clamp-2 max-w-[95%] tracking-tight font-mono">
           {pad.name}
         </h3>
 
         <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-mono">
           {isLoading ? (
-            <span className="text-orange-300 font-semibold flex items-center gap-1">
+            <span className="text-blue-300 font-semibold flex items-center gap-1">
               <Loader2 className="w-3 h-3 animate-spin" /> CARREGANDO...
             </span>
           ) : isPlaying ? (
-            <span className="text-orange-300 font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping inline-block shadow-[0_0_8px_#fb923c]" />
+            <span className="text-white font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping inline-block shadow-[0_0_8px_#60a5fa]" />
               TOCANDO
             </span>
           ) : (
-            <span className="text-orange-400/70 font-medium">
+            <span className="text-blue-300/80 font-medium">
               {pad.isLoop ? 'LOOP' : 'ONE-SHOT'}
             </span>
           )}
@@ -242,10 +242,10 @@ export const PadCard: React.FC<PadCardProps> = ({
 
       {/* Mixer Mini Drawer */}
       {showMixer && (
-        <div className="px-3 py-2.5 bg-[#1a0600] border-t border-orange-500/30 space-y-2 text-xs animate-in fade-in duration-150">
-          <div className="flex items-center justify-between text-orange-200 font-semibold font-mono text-[11px]">
+        <div className="px-3 py-2.5 bg-[#060f26] border-t border-blue-500/30 space-y-2 text-xs animate-in fade-in duration-150">
+          <div className="flex items-center justify-between text-blue-100 font-semibold font-mono text-[11px]">
             <span>VOLUME</span>
-            <span className="font-mono text-orange-400">{Math.round((pad.volume ?? 0.8) * 100)}%</span>
+            <span className="font-mono text-white font-bold">{Math.round((pad.volume ?? 0.8) * 100)}%</span>
           </div>
           <input
             type="range"
@@ -254,12 +254,12 @@ export const PadCard: React.FC<PadCardProps> = ({
             step="0.01"
             value={pad.volume ?? 0.8}
             onChange={(e) => onUpdatePad(pad.id, { volume: parseFloat(e.target.value) })}
-            className="w-full accent-orange-500 h-1.5 bg-[#2d0f01] rounded-lg cursor-pointer"
+            className="w-full accent-blue-500 h-1.5 bg-[#0d224d] rounded-lg cursor-pointer"
           />
 
-          <div className="flex items-center justify-between text-orange-200 font-semibold font-mono text-[11px] pt-0.5">
+          <div className="flex items-center justify-between text-blue-100 font-semibold font-mono text-[11px] pt-0.5">
             <span>FILTRO TONE</span>
-            <span className="font-mono text-orange-400">
+            <span className="font-mono text-white font-bold">
               {pad.filterCutoff >= 19000 ? 'Aberto' : `${Math.round(pad.filterCutoff)}Hz`}
             </span>
           </div>
@@ -270,20 +270,20 @@ export const PadCard: React.FC<PadCardProps> = ({
             step="100"
             value={pad.filterCutoff ?? 20000}
             onChange={(e) => onUpdatePad(pad.id, { filterCutoff: parseFloat(e.target.value) })}
-            className="w-full accent-orange-500 h-1.5 bg-[#2d0f01] rounded-lg cursor-pointer"
+            className="w-full accent-blue-500 h-1.5 bg-[#0d224d] rounded-lg cursor-pointer"
           />
         </div>
       )}
 
       {/* Pad Footer Controls */}
-      <div className="px-2.5 py-2 bg-[#1b0700] border-t border-orange-500/25 flex items-center justify-between gap-1.5">
+      <div className="px-2.5 py-2 bg-[#07132e] border-t border-blue-500/25 flex items-center justify-between gap-1.5">
         <button
           id={`pad-loop-toggle-${pad.id}`}
           onClick={toggleLoop}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all active:scale-95 cursor-pointer ${
             pad.isLoop
-              ? 'bg-orange-500/25 text-orange-300 border border-orange-400/50 shadow-[0_0_8px_rgba(249,115,22,0.2)]'
-              : 'text-orange-400/60 hover:text-orange-200 hover:bg-orange-900/30'
+              ? 'bg-blue-500/30 text-white border border-blue-400/60 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
+              : 'text-blue-300/70 hover:text-white hover:bg-blue-900/40'
           }`}
           title={pad.isLoop ? 'Loop Ativado' : 'Loop Desativado'}
         >
@@ -299,7 +299,7 @@ export const PadCard: React.FC<PadCardProps> = ({
               setShowMixer(!showMixer);
             }}
             className={`p-1.5 rounded-lg text-xs transition-colors active:scale-90 cursor-pointer ${
-              showMixer ? 'bg-orange-600/30 text-orange-300 border border-orange-500/40' : 'text-orange-400/70 hover:text-white hover:bg-orange-900/30'
+              showMixer ? 'bg-blue-600/30 text-white border border-blue-500/40' : 'text-blue-300/70 hover:text-white hover:bg-blue-900/40'
             }`}
             title="Ajustes de Volume e Tom"
           >
@@ -313,7 +313,7 @@ export const PadCard: React.FC<PadCardProps> = ({
               const isMuted = (pad.volume ?? 0.8) === 0;
               onUpdatePad(pad.id, { volume: isMuted ? 0.8 : 0 });
             }}
-            className="p-1.5 rounded-lg text-xs text-orange-400/70 hover:text-white hover:bg-orange-900/30 transition-colors active:scale-90 cursor-pointer"
+            className="p-1.5 rounded-lg text-xs text-blue-300/70 hover:text-white hover:bg-blue-900/40 transition-colors active:scale-90 cursor-pointer"
             title={(pad.volume ?? 0.8) === 0 ? 'Desmutar' : 'Mutar'}
           >
             {(pad.volume ?? 0.8) === 0 ? (
