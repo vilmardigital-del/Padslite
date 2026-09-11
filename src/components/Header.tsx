@@ -8,7 +8,8 @@ import {
   Music2,
   Sliders,
   Maximize,
-  Minimize
+  Minimize,
+  ListMusic
 } from 'lucide-react';
 import { audioEngine } from '../services/audioEngine';
 
@@ -21,6 +22,8 @@ interface HeaderProps {
   totalPadsCount: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onOpenPlaylist?: () => void;
+  playlistCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
   totalPadsCount,
   isFullscreen,
   onToggleFullscreen,
+  onOpenPlaylist,
+  playlistCount = 0,
 }) => {
   const [masterVolume, setMasterVolume] = useState(0.85);
   const [masterFilter, setMasterFilter] = useState(20000);
@@ -117,6 +122,28 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Square className="w-3.5 h-3.5 fill-current" />
               <span>PARAR</span>
+            </button>
+          )}
+
+          {/* Presentation Playlist Button */}
+          {onOpenPlaylist && (
+            <button
+              id="btn-open-playlist"
+              onClick={onOpenPlaylist}
+              className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                playlistCount > 0
+                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-800 hover:border-amber-500/40'
+              }`}
+              title="Playlist de Apresentação (áudios escalados para o palco)"
+            >
+              <ListMusic className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Apresentação</span>
+              {playlistCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-slate-950 text-amber-300">
+                  {playlistCount}
+                </span>
+              )}
             </button>
           )}
 

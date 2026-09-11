@@ -14,27 +14,32 @@ import {
   Sliders,
   Check,
   Cloud,
-  Loader2
+  Loader2,
+  ListMusic
 } from 'lucide-react';
 
 interface PadCardProps {
   pad: PadItem;
   isPlaying: boolean;
   isLoading?: boolean;
+  isInPlaylist?: boolean;
   onTogglePlay: (pad: PadItem) => void;
   onUpdatePad: (padId: string, updates: Partial<PadItem>) => void;
   onDeletePad: (padId: string) => void;
   onEditPad: (pad: PadItem) => void;
+  onTogglePlaylist?: (padId: string) => void;
 }
 
 export const PadCard: React.FC<PadCardProps> = ({
   pad,
   isPlaying,
   isLoading = false,
+  isInPlaylist = false,
   onTogglePlay,
   onUpdatePad,
   onDeletePad,
   onEditPad,
+  onTogglePlaylist,
 }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
@@ -105,6 +110,27 @@ export const PadCard: React.FC<PadCardProps> = ({
               <Cloud className="w-3 h-3" />
             </span>
           )}
+
+          {/* Scale to Presentation Button */}
+          {onTogglePlaylist && (
+            <button
+              id={`pad-playlist-btn-${pad.id}`}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePlaylist(pad.id);
+              }}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-90 ${
+                isInPlaylist
+                  ? 'text-amber-300 bg-amber-500/25 border border-amber-500/40 shadow-xs'
+                  : 'text-slate-500 hover:text-amber-300 hover:bg-slate-800'
+              }`}
+              title={isInPlaylist ? 'Escalado na Apresentação (clique para remover)' : 'Escalar para Apresentação'}
+            >
+              <ListMusic className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           <div className="relative">
             <button
               id={`pad-menu-btn-${pad.id}`}
@@ -145,6 +171,19 @@ export const PadCard: React.FC<PadCardProps> = ({
                   <Edit2 className="w-3.5 h-3.5 text-amber-400" />
                   Editar Nome/Tom
                 </button>
+                {onTogglePlaylist && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowOptions(false);
+                      onTogglePlaylist(pad.id);
+                    }}
+                    className="w-full text-left px-3 py-2 text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  >
+                    <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+                    {isInPlaylist ? 'Remover da Apresentação' : 'Escalar para Apresentação'}
+                  </button>
+                )}
                 <div className="h-px bg-slate-800 my-1" />
                 <button
                   onClick={(e) => {

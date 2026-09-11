@@ -18,7 +18,8 @@ import {
   Cloud,
   UploadCloud,
   Trash2,
-  VolumeX
+  VolumeX,
+  ListMusic
 } from 'lucide-react';
 import { PadItem, CloudStorageStats } from './types';
 import { audioEngine } from './services/audioEngine';
@@ -40,6 +41,8 @@ import { UploadModal } from './components/UploadModal';
 import { PadEditModal } from './components/PadEditModal';
 import { CloudStorageInfo } from './components/CloudStorageInfo';
 import { NowPlayingDock } from './components/NowPlayingDock';
+import { PresentationView } from './components/PresentationView';
+import { PlaylistModal } from './components/PlaylistModal';
 
 export default function App() {
   const [pads, setPads] = useState<PadItem[]>([]);
@@ -51,6 +54,18 @@ export default function App() {
   const [selectedKey, setSelectedKey] = useState<string>('all');
   const [isCrossfadeMode, setIsCrossfadeMode] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
+
+  // Presentation Playlist state
+  const [playlistPadIds, setPlaylistPadIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('pads_presentation_playlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -423,13 +438,72 @@ export default function App() {
     }
   };
 
+  // Playlist actions
+  const updatePlaylistPadIds = useCallback((newIds: string[]) => {
+    setPlaylistPadIds(newIds);
+    try {
+      localStorage.setItem('pads_presentation_playlist', JSON.stringify(newIds));
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const handleTogglePadInPlaylist = useCallback((padId: string) => {
+    setPlaylistPadIds(prev => {
+      let next: string[];
+      if (prev.includes(padId)) {
+        next = prev.filter(id => id !== padId);
+        showNotification('Áudio removido da apresentação');
+      } else {
+        next = [...prev, padId];
+        showNotification('Áudio escalado para a apresentação!');
+      }
+      try {
+        localStorage.setItem('pads_presentation_playlist', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  }, [showNotification]);
+
+  const handleStartPresentation = useCallback(() => {
+    if (playlistPadIds.length === 0) {
+      setIsPlaylistModalOpen(true);
+      showNotification('Selecione primeiro os áudios da apresentação');
+      return;
+    }
+    setIsPresentationMode(true);
+    if (!isFullscreen) {
+      toggleFullscreen();
+    }
+    showNotification('Modo Apresentação ativado!');
+  }, [playlistPadIds.length, isFullscreen, toggleFullscreen, showNotification]);
+
+  const handleExitPresentation = useCallback(() => {
+    setIsPresentationMode(false);
+    showNotification('Apresentação finalizada');
+  }, [showNotification]);
+
+  // Scaled pads for presentation
+  const playlistPads = useMemo(() => {
+    return playlistPadIds
+      .map(id => pads.find(p => p.id === id))
+      .filter((p): p is PadItem => Boolean(p));
+  }, [playlistPadIds, pads]);
+
   // Filtered Pads
   const filteredPads = useMemo(() => {
     return pads.filter(pad => {
       // Category filter
       if (selectedCategory !== 'all') {
-        if (selectedCategory === 'custom' && !pad.isCustomUpload) return false;
-        if (selectedCategory !== 'custom' && pad.category !== selectedCategory) return false;
+        if (selectedCategory === 'presentation') {
+          if (!playlistPadIds.includes(pad.id)) return false;
+        } else if (selectedCategory === 'custom') {
+          if (!pad.isCustomUpload) return false;
+        } else if (pad.category !== selectedCategory) {
+          return false;
+        }
       }
 
       // Musical Key filter
@@ -449,7 +523,7 @@ export default function App() {
 
       return true;
     });
-  }, [pads, selectedCategory, selectedKey, searchQuery]);
+  }, [pads, selectedCategory, selectedKey, searchQuery, playlistPadIds]);
 
   const categoryCounts = useMemo(() => {
     return {
@@ -458,8 +532,9 @@ export default function App() {
       ritmo: pads.filter(p => p.category === 'ritmo').length,
       percussao: pads.filter(p => p.category === 'percussao').length,
       custom: pads.filter(p => p.isCustomUpload).length,
+      presentation: playlistPadIds.length,
     };
-  }, [pads]);
+  }, [pads, playlistPadIds.length]);
 
   const musicalKeys = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
@@ -474,6 +549,34 @@ export default function App() {
       handleUpdatePad(padId, { isLoop: !pad.isLoop });
     }
   }, [pads, handleUpdatePad]);
+
+  // FULLSCREEN PRESENTATION MODE - Sem cabeçalho, sem rodapé, apenas os áudios escalados!
+  if (isPresentationMode) {
+    return (
+      <>
+        <PresentationView
+          playlistPads={playlistPads}
+          activePadIds={activePadIds}
+          loadingPadIds={loadingPadIds}
+          onTogglePlay={handleTogglePad}
+          onMasterFadeOut={handleMasterFadeOut}
+          onExit={handleExitPresentation}
+          onOpenPlaylistManager={() => setIsPlaylistModalOpen(true)}
+          onTogglePadLoop={handleTogglePadLoop}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
+        />
+        <PlaylistModal
+          isOpen={isPlaylistModalOpen}
+          onClose={() => setIsPlaylistModalOpen(false)}
+          allPads={pads}
+          playlistPadIds={playlistPadIds}
+          onUpdatePlaylist={updatePlaylistPadIds}
+          onStartPresentation={handleStartPresentation}
+        />
+      </>
+    );
+  }
 
   return (
     <div
@@ -500,6 +603,8 @@ export default function App() {
         totalPadsCount={pads.length}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
+        onOpenPlaylist={() => setIsPlaylistModalOpen(true)}
+        playlistCount={playlistPadIds.length}
       />
 
       {/* Main Container - Mobile & Tablet Pro Dimensions */}
@@ -640,6 +745,20 @@ export default function App() {
               <span>Percussão ({categoryCounts.percussao})</span>
             </button>
 
+            {/* Presentation Playlist Tab */}
+            <button
+              id="tab-presentation-playlist"
+              onClick={() => setSelectedCategory('presentation')}
+              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+                selectedCategory === 'presentation'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-xs'
+                  : 'bg-slate-900/60 text-amber-400/70 hover:text-amber-300 border border-slate-800/60'
+              }`}
+            >
+              <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+              <span>Apresentação ({categoryCounts.presentation})</span>
+            </button>
+
             {categoryCounts.custom > 0 && (
               <button
                 onClick={() => setSelectedCategory('custom')}
@@ -654,6 +773,25 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {/* Quick Launch Banner when on Presentation Tab */}
+          {selectedCategory === 'presentation' && (
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+              <span className="text-amber-200 font-medium">
+                {playlistPads.length} áudio(s) escalado(s) para o palco
+              </span>
+              <button
+                type="button"
+                id="btn-launch-presentation-banner"
+                onClick={handleStartPresentation}
+                disabled={playlistPads.length === 0}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+              >
+                <ListMusic className="w-3.5 h-3.5" />
+                <span>Abrir Apresentação (Tela Cheia)</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Touch Pads Grid - 2 cols on mobile, 3-4 cols on tablet */}
@@ -687,7 +825,9 @@ export default function App() {
             <Music className="w-8 h-8 text-slate-600 mx-auto" />
             <h3 className="font-semibold text-sm text-slate-300">Nenhum pad encontrado</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              Tente selecionar outro tom ou limpar a busca.
+              {selectedCategory === 'presentation'
+                ? 'Nenhum áudio foi escalado para a apresentação ainda. Clique no ícone de lista nos pads para adicionar.'
+                : 'Tente selecionar outro tom ou limpar a busca.'}
             </p>
             <button
               onClick={() => {
@@ -697,7 +837,7 @@ export default function App() {
               }}
               className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300 active:scale-95 transition-colors"
             >
-              Limpar Filtros
+              Ver Todos os Pads
             </button>
           </div>
         ) : (
@@ -708,10 +848,12 @@ export default function App() {
                 pad={pad}
                 isPlaying={activePadIds.has(pad.id)}
                 isLoading={loadingPadIds.has(pad.id)}
+                isInPlaylist={playlistPadIds.includes(pad.id)}
                 onTogglePlay={handleTogglePad}
                 onUpdatePad={handleUpdatePad}
                 onDeletePad={handleDeletePad}
                 onEditPad={(p) => setEditingPad(p)}
+                onTogglePlaylist={handleTogglePadInPlaylist}
               />
             ))}
           </div>
@@ -728,10 +870,20 @@ export default function App() {
       />
 
       {/* Modals */}
+      <PlaylistModal
+        isOpen={isPlaylistModalOpen}
+        onClose={() => setIsPlaylistModalOpen(false)}
+        allPads={pads}
+        playlistPadIds={playlistPadIds}
+        onUpdatePlaylist={updatePlaylistPadIds}
+        onStartPresentation={handleStartPresentation}
+      />
+
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={handleUploadSuccess}
+        initialCategory={selectedCategory === 'ritmo' || selectedCategory === 'percussao' ? selectedCategory : 'worship'}
       />
 
       <PadEditModal

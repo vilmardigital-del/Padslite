@@ -101,13 +101,34 @@ export async function fetchCloudStats(): Promise<CloudStorageStats> {
   };
 }
 
-export async function uploadAudioFiles(files: File[]): Promise<{ addedPads: PadItem[]; totalPads: number }> {
+export interface AudioUploadItem {
+  file: File;
+  category?: PadItem['category'];
+}
+
+export async function uploadAudioFiles(
+  items: Array<AudioUploadItem | File>
+): Promise<{ addedPads: PadItem[]; totalPads: number }> {
+  const normalizedItems: AudioUploadItem[] = items.map(item => {
+    if (item instanceof File) {
+      return { file: item };
+    }
+    return item;
+  });
+
   // First attempt: Server API upload (if server is active)
   try {
     const formData = new FormData();
-    files.forEach(file => {
-      formData.append('audioFiles', file);
+    const categoriesMap: Record<string, string> = {};
+
+    normalizedItems.forEach(item => {
+      formData.append('audioFiles', item.file);
+      if (item.category) {
+        categoriesMap[item.file.name] = item.category;
+      }
     });
+
+    formData.append('categoriesJson', JSON.stringify(categoriesMap));
 
     const res = await fetch('/api/upload', {
       method: 'POST',
@@ -138,8 +159,8 @@ export async function uploadAudioFiles(files: File[]): Promise<{ addedPads: PadI
   const currentPads = getStoredPads() || getDefaultPads();
   const addedPads: PadItem[] = [];
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
+  for (let i = 0; i < normalizedItems.length; i++) {
+    const { file, category: userCategory } = normalizedItems[i];
     const padId = `pad-custom-${Date.now()}-${i}`;
     const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
 
@@ -151,15 +172,17 @@ export async function uploadAudioFiles(files: File[]): Promise<{ addedPads: PadI
     const bpmMatch = file.name.match(/\b(\d{2,3})\s*bpm\b/i);
     const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
 
-    // Detect category
-    let category: PadItem['category'] = 'custom';
-    const lower = file.name.toLowerCase();
-    if (detectedKey || lower.includes('worship') || lower.includes('ambient') || lower.includes('pad')) {
-      category = 'worship';
-    } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
-      category = 'percussao';
-    } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
-      category = 'ritmo';
+    // Category assignment (prioritizes user chosen category)
+    let category: PadItem['category'] = userCategory || 'custom';
+    if (!userCategory) {
+      const lower = file.name.toLowerCase();
+      if (detectedKey || lower.includes('worship') || lower.includes('ambient') || lower.includes('pad')) {
+        category = 'worship';
+      } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
+        category = 'percussao';
+      } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
+        category = 'ritmo';
+      }
     }
 
     // Persist audio blob in IndexedDB
@@ -180,8 +203,8 @@ export async function uploadAudioFiles(files: File[]): Promise<{ addedPads: PadI
       volume: 0.95,
       pan: 0,
       filterCutoff: 20000,
-      fadeInTime: 0,
-      fadeOutTime: 0.05,
+      fadeInTime: category === 'worship' ? 1.5 : 0,
+      fadeOutTime: category === 'worship' ? 2.5 : 0.05,
       isCustomUpload: true,
       cloudStored: true,
       createdAt: new Date().toISOString()

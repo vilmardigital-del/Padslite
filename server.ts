@@ -279,6 +279,16 @@ app.post('/api/upload', upload.array('audioFiles', 50), (req, res) => {
     const currentPads = getPads();
     const newPads: PadRecord[] = [];
 
+    // Parse categories chosen by user
+    let categoryMap: Record<string, string> = {};
+    if (req.body.categoriesJson) {
+      try {
+        categoryMap = JSON.parse(req.body.categoriesJson);
+      } catch (e) {
+        console.warn('Could not parse categoriesJson:', e);
+      }
+    }
+
     files.forEach((file, index) => {
       const cleanName = path.parse(file.originalname).name.replace(/[_-]+/g, ' ');
       // Detect key if in name (e.g. "Pad Em", "C#", "Sol")
@@ -289,15 +299,20 @@ app.post('/api/upload', upload.array('audioFiles', 50), (req, res) => {
       const bpmMatch = file.originalname.match(/(\d{2,3})\s*bpm/i);
       const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
 
-      // Category detection
-      let category: PadRecord['category'] = 'custom';
-      const lower = file.originalname.toLowerCase();
-      if (lower.includes('pad') || lower.includes('worship') || lower.includes('ambient')) {
-        category = 'worship';
-      } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
-        category = 'percussao';
-      } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
-        category = 'ritmo';
+      // Check user-selected category first
+      let category: PadRecord['category'] = 'worship';
+      const userChosen = categoryMap[file.originalname] || categoryMap[file.filename] || req.body.category;
+      if (userChosen && ['worship', 'ritmo', 'percussao'].includes(userChosen)) {
+        category = userChosen as any;
+      } else {
+        const lower = file.originalname.toLowerCase();
+        if (lower.includes('pad') || lower.includes('worship') || lower.includes('ambient')) {
+          category = 'worship';
+        } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
+          category = 'percussao';
+        } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
+          category = 'ritmo';
+        }
       }
 
       const pad: PadRecord = {
@@ -315,8 +330,8 @@ app.post('/api/upload', upload.array('audioFiles', 50), (req, res) => {
         volume: 0.95,
         pan: 0,
         filterCutoff: 20000,
-        fadeInTime: 0,
-        fadeOutTime: 0.05,
+        fadeInTime: category === 'worship' ? 1.5 : 0,
+        fadeOutTime: category === 'worship' ? 2.5 : 0.05,
         isCustomUpload: true,
         cloudStored: true,
         createdAt: new Date().toISOString()
