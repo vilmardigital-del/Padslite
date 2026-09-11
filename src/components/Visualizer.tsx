@@ -91,20 +91,20 @@ export const Visualizer: React.FC<VisualizerProps> = ({ activeCount }) => {
   }, [activeCount]);
 
   return (
-    <div id="audio-visualizer-container" className="relative w-full h-10 sm:h-11 rounded-lg overflow-hidden border border-amber-800/60 shadow-inner bg-[#210c02]/85">
+    <div id="audio-visualizer-container" className="relative w-full h-12 rounded-2xl overflow-hidden border border-orange-500/40 shadow-[0_4px_20px_rgba(234,88,12,0.2)] bg-[#260c01]/90 backdrop-blur-xl">
       <canvas
         ref={canvasRef}
         width={800}
-        height={44}
+        height={48}
         className="w-full h-full block"
       />
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-3 text-[11px] font-medium text-amber-200/80">
-        <span className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${activeCount > 0 ? 'bg-amber-400 animate-pulse' : 'bg-amber-800'}`} />
-          {activeCount > 0 ? `${activeCount} áudio(s) em reprodução` : 'Pronto'}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-between px-3 text-[11px] font-mono font-medium text-orange-200/90">
+        <span className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${activeCount > 0 ? 'bg-orange-400 shadow-[0_0_8px_#fb923c] animate-pulse' : 'bg-orange-900/60'}`} />
+          <span className="font-bold tracking-tight">{activeCount > 0 ? `LIVE // ${activeCount} ÁUDIO(S)` : 'SPECTRUM IDLE'}</span>
         </span>
-        <span className="font-mono text-[10px] text-amber-500/70 hidden sm:inline">
-          Áudio Profissional • 44.1 kHz
+        <span className="font-mono text-[10px] text-orange-400/80 hidden sm:inline tracking-wider">
+          48 kHz • DSP 32-BIT
         </span>
       </div>
     </div>

@@ -580,20 +580,20 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen text-amber-50 flex flex-col font-sans selection:bg-amber-400 selection:text-black notranslate ${
+      className={`min-h-screen text-orange-50 flex flex-col font-sans selection:bg-orange-500 selection:text-black notranslate ${
         isVirtualFullscreen ? 'fixed inset-0 z-50 overflow-y-auto w-full h-full' : 'w-full'
       }`}
       style={{
-        background: 'radial-gradient(ellipse at 15% 15%, rgba(245, 158, 11, 0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, rgba(234, 88, 12, 0.26) 0%, transparent 55%), radial-gradient(ellipse at 50% 30%, rgba(251, 191, 36, 0.12) 0%, transparent 70%), linear-gradient(140deg, #1a0800 0%, #2c0e00 25%, #421903 50%, #2a0f01 75%, #180700 100%)',
+        background: 'radial-gradient(circle at 10% 15%, rgba(255, 140, 0, 0.42) 0%, transparent 45%), radial-gradient(circle at 90% 85%, rgba(249, 115, 22, 0.38) 0%, transparent 50%), radial-gradient(circle at 50% 40%, rgba(251, 146, 60, 0.22) 0%, transparent 60%), linear-gradient(135deg, #381200 0%, #5e1e00 25%, #882e00 50%, #521900 75%, #290b00 100%)',
         backgroundAttachment: 'fixed',
       }}
       translate="no"
     >
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200 border border-amber-300/40">
+        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-2xl shadow-[0_0_25px_rgba(249,115,22,0.6)] flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200 border border-amber-300">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          <span className="truncate">{notification}</span>
+          <span className="truncate font-mono">{notification}</span>
         </div>
       )}
 
@@ -614,45 +614,45 @@ export default function App() {
       {/* Main Container - Mobile & Tablet Pro Dimensions */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-2.5 sm:px-4 py-2.5 sm:py-3.5 pb-28 sm:pb-32 space-y-2.5 sm:space-y-3">
         {/* Compact Studio Toolstrip: Visualizer & Metronome */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
           <Visualizer activeCount={activePadIds.size} />
           <Metronome />
         </div>
 
         {/* Search, Categories & Quick Key Filter */}
-        <div className="bg-[#220d02]/90 border border-amber-700/35 rounded-2xl p-2.5 sm:p-3 shadow-lg shadow-orange-950/40 space-y-2.5 backdrop-blur-md">
+        <div className="bg-[#270b00]/90 border border-orange-500/40 rounded-2xl p-2.5 sm:p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] space-y-2.5 backdrop-blur-2xl">
           {/* Search & Main Add Button */}
           <div className="flex items-center gap-2">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-amber-500/70 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-orange-400/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="search-pads-input"
                 type="text"
-                placeholder="Buscar por nome, tom (C, D, G...), BPM..."
+                placeholder="Buscar áudio por nome, tom (C, D, G...), BPM..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-[#140600]/90 border border-amber-800/50 rounded-xl text-xs sm:text-sm text-amber-100 placeholder-amber-600/60 focus:outline-none focus:border-amber-400 transition-colors"
+                className="w-full pl-9 pr-8 py-2 bg-[#170500]/95 border border-orange-500/40 rounded-xl text-xs sm:text-sm text-orange-100 placeholder-orange-400/50 focus:outline-none focus:border-orange-400 transition-colors shadow-inner font-mono"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 hover:text-white p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-orange-400 hover:text-white p-1"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            {/* Quick Action: Add New Pads */}
+            {/* Quick Action: Add New Pads (Futuristic Neon Button) */}
             <button
               id="btn-upload-pads"
               onClick={() => setIsUploadOpen(true)}
-              className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(249,115,22,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer shrink-0"
               title="Adicionar novos arquivos de áudio"
             >
-              <Plus className="w-4 h-4" />
-              <span className="hidden xs:inline">Adicionar</span>
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span className="hidden xs:inline">ADICIONAR</span>
             </button>
 
             {/* If any system pad exists, show 1-click removal */}
@@ -660,7 +660,7 @@ export default function App() {
               <button
                 id="btn-remove-system-pads"
                 onClick={handleRemoveSystemPads}
-                className="h-9 px-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1 border border-rose-500/30 transition-colors cursor-pointer shrink-0 active:scale-95"
+                className="h-9 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-semibold flex items-center gap-1 border border-rose-500/40 transition-colors cursor-pointer shrink-0 active:scale-95"
                 title="Remover pads padrão do sistema"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -671,27 +671,27 @@ export default function App() {
 
           {/* Quick Musical Key Filter (Touch Slider with smooth scrolling) */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5 text-xs">
-            <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0">
-              <Filter className="w-3 h-3 text-amber-400" /> Tom:
+            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0 font-mono">
+              <Filter className="w-3 h-3 text-orange-400" /> TOM:
             </span>
             <button
               onClick={() => setSelectedKey('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                 selectedKey === 'all'
-                  ? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-500/40'
-                  : 'bg-[#180700] text-amber-300/80 border border-amber-900/60 hover:text-white hover:border-amber-700'
+                  ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 shadow-[0_0_10px_rgba(249,115,22,0.5)] font-black'
+                  : 'bg-[#1a0600] text-orange-200/80 border border-orange-500/30 hover:text-white hover:border-orange-400'
               }`}
             >
-              Todos
+              TODOS
             </button>
             {musicalKeys.map(k => (
               <button
                 key={k}
                 onClick={() => setSelectedKey(selectedKey === k ? 'all' : k)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                   selectedKey === k
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 shadow-sm shadow-amber-500/30 font-black'
-                    : 'bg-[#180700] text-amber-200/90 border border-amber-900/60 hover:border-amber-500/60 hover:text-white'
+                    ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 text-slate-950 shadow-[0_0_12px_rgba(249,115,22,0.5)] font-black border border-orange-300'
+                    : 'bg-[#1a0600] text-orange-200 border border-orange-500/30 hover:border-orange-400 hover:text-white'
                 }`}
               >
                 {k}
@@ -703,22 +703,22 @@ export default function App() {
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-xs">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'all'
-                  ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50 shadow-xs'
-                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
+                  ? 'bg-orange-500/30 text-orange-200 border border-orange-400/70 shadow-[0_0_10px_rgba(249,115,22,0.25)]'
+                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers className="w-3.5 h-3.5 text-orange-400" />
               <span>Todos ({categoryCounts.all})</span>
             </button>
 
             <button
               onClick={() => setSelectedCategory('worship')}
-              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'worship'
-                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
-                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
+                  ? 'bg-amber-500/30 text-amber-200 border border-amber-400/70 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -727,10 +727,10 @@ export default function App() {
 
             <button
               onClick={() => setSelectedCategory('ritmo')}
-              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'ritmo'
-                  ? 'bg-orange-500/25 text-orange-200 border border-orange-500/50 shadow-xs'
-                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
+                  ? 'bg-orange-500/30 text-orange-200 border border-orange-400/70 shadow-[0_0_10px_rgba(249,115,22,0.3)]'
+                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-orange-400" />
@@ -739,49 +739,49 @@ export default function App() {
 
             <button
               onClick={() => setSelectedCategory('percussao')}
-              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'percussao'
-                  ? 'bg-amber-600/25 text-amber-200 border border-amber-600/50 shadow-xs'
-                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
+                  ? 'bg-amber-600/30 text-amber-200 border border-amber-500/70 shadow-[0_0_10px_rgba(217,119,6,0.3)]'
+                  : 'bg-[#1a0600]/80 text-orange-300/70 hover:text-orange-100 border border-orange-500/25'
               }`}
             >
               <Music className="w-3.5 h-3.5 text-amber-400" />
               <span>Percussão ({categoryCounts.percussao})</span>
             </button>
 
-            {/* Presentation Playlist Tab */}
+            {/* Presentation Playlist Tab (Palco) */}
             <button
               id="tab-presentation-playlist"
               onClick={() => setSelectedCategory('presentation')}
-              className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                 selectedCategory === 'presentation'
-                  ? 'bg-amber-500 text-slate-950 font-bold border border-amber-400 shadow-sm'
-                  : 'bg-[#180700]/70 text-amber-400 hover:text-amber-200 border border-amber-900/50'
+                  ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 text-slate-950 font-black border border-amber-300 shadow-[0_0_15px_rgba(249,115,22,0.4)]'
+                  : 'bg-[#1a0600]/80 text-orange-300 hover:text-white border border-orange-500/30'
               }`}
             >
               <ListMusic className="w-3.5 h-3.5" />
-              <span>Apresentação ({categoryCounts.presentation})</span>
+              <span>Palco ({categoryCounts.presentation})</span>
             </button>
 
             {categoryCounts.custom > 0 && (
               <button
                 onClick={() => setSelectedCategory('custom')}
-                className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
+                className={`px-3 py-1.5 rounded-xl font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                   selectedCategory === 'custom'
-                    ? 'bg-slate-800 text-rose-300 border border-rose-500/40'
-                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                    ? 'bg-orange-500/30 text-orange-200 border border-orange-400'
+                    : 'bg-[#1a0600]/80 text-orange-400/70 hover:text-orange-200 border border-orange-500/25'
                 }`}
               >
-                <Cloud className="w-3.5 h-3.5" />
-                <span>Meus Uploads ({categoryCounts.custom})</span>
+                <Cloud className="w-3.5 h-3.5 text-orange-400" />
+                <span>Uploads ({categoryCounts.custom})</span>
               </button>
             )}
           </div>
 
           {/* Quick Launch Banner when on Presentation Tab */}
           {selectedCategory === 'presentation' && (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
-              <span className="text-amber-200 font-medium">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-amber-500/15 to-orange-500/20 border border-orange-500/40 text-xs shadow-inner">
+              <span className="text-orange-200 font-mono font-semibold">
                 {playlistPads.length} áudio(s) escalado(s) para o palco
               </span>
               <button
@@ -789,10 +789,10 @@ export default function App() {
                 id="btn-launch-presentation-banner"
                 onClick={handleStartPresentation}
                 disabled={playlistPads.length === 0}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-mono font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-40 shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-amber-300"
               >
                 <ListMusic className="w-3.5 h-3.5" />
-                <span>Abrir Apresentação (Tela Cheia)</span>
+                <span>Entrar no Palco (Tela Cheia)</span>
               </button>
             </div>
           )}
@@ -801,36 +801,36 @@ export default function App() {
         {/* Touch Pads Grid - 2 cols on mobile, 3-4 cols on tablet */}
         {loading ? (
           <div className="py-20 text-center space-y-3">
-            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-slate-400">Carregando pads...</p>
+            <div className="w-9 h-9 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto shadow-[0_0_15px_rgba(249,115,22,0.5)]" />
+            <p className="text-xs font-mono text-orange-300/80">INICIALIZANDO MOTOR DSP...</p>
           </div>
         ) : pads.length === 0 ? (
-          <div className="py-12 sm:py-16 px-4 text-center max-w-md mx-auto bg-[#101524] rounded-2xl border border-slate-800 shadow-xl space-y-4 my-2">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mx-auto">
+          <div className="py-12 sm:py-16 px-4 text-center max-w-md mx-auto bg-[#250b01]/90 rounded-2xl border border-orange-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.6)] space-y-4 my-2 backdrop-blur-xl">
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/50 flex items-center justify-center text-orange-400 mx-auto shadow-[0_0_20px_rgba(249,115,22,0.3)]">
               <UploadCloud className="w-7 h-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-100">Pronto para seus próprios pads</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Adicione seus arquivos de áudio (MP3, WAV, M4A, OGG) para montar seu kit personalizado para celular ou tablet.
+              <h3 className="text-base font-bold text-orange-100 font-mono">SEU KIT DE ÁUDIO</h3>
+              <p className="text-xs text-orange-300/70 leading-relaxed font-sans">
+                Adicione seus arquivos de áudio (MP3, WAV, M4A, OGG) para montar seu kit personalizado de pads para worship, ritmo ou percussão.
               </p>
             </div>
             <button
               id="btn-add-first-pads"
               onClick={() => setIsUploadOpen(true)}
-              className="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition-all cursor-pointer"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 text-slate-950 font-mono font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(249,115,22,0.5)] border border-amber-300 active:scale-95 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>Adicionar Meus Áudios</span>
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>ADICIONAR MEUS ÁUDIOS</span>
             </button>
           </div>
         ) : filteredPads.length === 0 ? (
-          <div className="py-16 text-center space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800">
-            <Music className="w-8 h-8 text-slate-600 mx-auto" />
-            <h3 className="font-semibold text-sm text-slate-300">Nenhum pad encontrado</h3>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          <div className="py-16 text-center space-y-3 bg-[#250b01]/80 rounded-2xl border border-orange-500/30 backdrop-blur-xl">
+            <Music className="w-8 h-8 text-orange-500/60 mx-auto animate-pulse" />
+            <h3 className="font-semibold text-sm text-orange-200 font-mono">Nenhum áudio encontrado</h3>
+            <p className="text-xs text-orange-300/70 max-w-xs mx-auto">
               {selectedCategory === 'presentation'
-                ? 'Nenhum áudio foi escalado para a apresentação ainda. Clique no ícone de lista nos pads para adicionar.'
+                ? 'Nenhum áudio foi escalado para o palco ainda. Clique no botão "Palco" nos cards para adicionar.'
                 : 'Tente selecionar outro tom ou limpar a busca.'}
             </p>
             <button
@@ -839,9 +839,9 @@ export default function App() {
                 setSelectedCategory('all');
                 setSelectedKey('all');
               }}
-              className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300 active:scale-95 transition-colors"
+              className="px-4 py-2 text-xs font-mono font-bold rounded-xl bg-[#3b1502] text-orange-200 border border-orange-500/40 hover:border-orange-400 active:scale-95 transition-colors cursor-pointer"
             >
-              Ver Todos os Pads
+              VER TODOS OS ÁUDIOS
             </button>
           </div>
         ) : (

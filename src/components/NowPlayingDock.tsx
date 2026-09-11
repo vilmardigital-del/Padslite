@@ -21,38 +21,38 @@ export const NowPlayingDock: React.FC<NowPlayingDockProps> = ({
 
   return (
     <div className="fixed bottom-3 inset-x-3 sm:inset-x-6 z-40 max-w-2xl mx-auto pointer-events-none">
-      <div className="pointer-events-auto bg-[#1f0b01]/95 backdrop-blur-xl border border-amber-600/40 rounded-2xl p-2.5 sm:p-3 shadow-2xl shadow-black/80 flex items-center justify-between gap-2 sm:gap-3 ring-1 ring-amber-500/20 animate-in fade-in slide-in-from-bottom-3 duration-200">
+      <div className="pointer-events-auto bg-[#230900]/95 backdrop-blur-2xl border border-orange-500/50 rounded-2xl p-2.5 sm:p-3 shadow-[0_10px_40px_rgba(0,0,0,0.8)] flex items-center justify-between gap-2 sm:gap-3 ring-1 ring-orange-500/30 animate-in fade-in slide-in-from-bottom-3 duration-200">
         {/* Active Track Info */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1 pl-1">
           {/* Tone Badge or Icon */}
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-inner"
+            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.3)] font-mono"
             style={{
-              backgroundColor: activePad?.color ? `${activePad.color}25` : 'rgba(245, 158, 11, 0.15)',
-              border: `1.5px solid ${activePad?.color || '#f59e0b'}`,
-              color: activePad?.color || '#fbbf24'
+              backgroundColor: activePad?.color ? `${activePad.color}25` : 'rgba(234, 88, 12, 0.2)',
+              border: `1.5px solid ${activePad?.color || '#ea580c'}`,
+              color: activePad?.color || '#fed7aa'
             }}
           >
             {activePad?.musicalKey ? (
-              <span className="font-mono text-xs">{activePad.musicalKey}</span>
+              <span className="font-mono font-black text-xs">{activePad.musicalKey}</span>
             ) : (
-              <Radio className="w-4 h-4 animate-pulse" />
+              <Radio className="w-4 h-4 animate-pulse text-orange-400" />
             )}
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping inline-block shrink-0" />
-              <p className="font-bold text-xs sm:text-sm text-amber-100 truncate">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping inline-block shrink-0 shadow-[0_0_8px_#fb923c]" />
+              <p className="font-bold text-xs sm:text-sm text-orange-100 truncate font-mono">
                 {activePad?.name || 'Carregando áudio...'}
               </p>
             </div>
-            <p className="text-[11px] text-amber-300/70 truncate flex items-center gap-1 mt-0.5">
-              <span>{isLoading ? 'Decodificando original...' : 'Em reprodução contínua'}</span>
+            <p className="text-[11px] font-mono text-orange-300/70 truncate flex items-center gap-1 mt-0.5">
+              <span>{isLoading ? 'DECODIFICANDO DSP...' : 'REPRODUÇÃO AO VIVO'}</span>
               {activePad?.bpm && (
                 <>
                   <span>•</span>
-                  <span>{activePad.bpm} BPM</span>
+                  <span className="text-orange-300 font-bold">{activePad.bpm} BPM</span>
                 </>
               )}
             </p>
@@ -64,30 +64,30 @@ export const NowPlayingDock: React.FC<NowPlayingDockProps> = ({
           {onToggleLoop && (
             <button
               onClick={onToggleLoop}
-              className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 ${
+              className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${
                 isLoop
-                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
-                  : 'bg-[#2b1002]/80 text-amber-400/60 hover:text-amber-200 border border-amber-900/60'
+                  ? 'bg-orange-500/30 text-orange-200 border border-orange-400/60 shadow-[0_0_8px_rgba(249,115,22,0.3)]'
+                  : 'bg-[#381302]/80 text-orange-300/60 hover:text-orange-200 border border-orange-500/30'
               }`}
               title={isLoop ? 'Loop Ativo' : 'Disparo Único'}
             >
               <Repeat className="w-4 h-4" />
-              <span className="hidden sm:inline text-[11px]">Loop</span>
+              <span className="hidden sm:inline text-[11px]">LOOP</span>
             </button>
           )}
 
-          {/* Big Thumb-Friendly STOP Button */}
+          {/* Big Thumb-Friendly STOP Button (Futuristic Red-Orange Beacon) */}
           <button
             id="dock-stop-button"
             onClick={onStop}
-            className="h-10 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-rose-600/40 active:scale-95 transition-all cursor-pointer ring-1 ring-white/20"
+            className="h-10 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-mono font-black text-xs sm:text-sm flex items-center gap-2 shadow-[0_0_20px_rgba(239,68,68,0.7)] active:scale-95 transition-all cursor-pointer border border-red-400/40"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Square className="w-4 h-4 fill-current" />
             )}
-            <span className="tracking-wide">PARAR</span>
+            <span className="tracking-wider">PARAR</span>
           </button>
         </div>
       </div>
