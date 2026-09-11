@@ -580,14 +580,18 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black notranslate ${
+      className={`min-h-screen text-amber-50 flex flex-col font-sans selection:bg-amber-400 selection:text-black notranslate ${
         isVirtualFullscreen ? 'fixed inset-0 z-50 overflow-y-auto w-full h-full' : 'w-full'
       }`}
+      style={{
+        background: 'radial-gradient(ellipse at 15% 15%, rgba(245, 158, 11, 0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, rgba(234, 88, 12, 0.26) 0%, transparent 55%), radial-gradient(ellipse at 50% 30%, rgba(251, 191, 36, 0.12) 0%, transparent 70%), linear-gradient(140deg, #1a0800 0%, #2c0e00 25%, #421903 50%, #2a0f01 75%, #180700 100%)',
+        backgroundAttachment: 'fixed',
+      }}
       translate="no"
     >
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-cyan-600 text-slate-950 font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="fixed top-16 inset-x-4 max-w-sm mx-auto z-50 bg-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center justify-center gap-2 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200 border border-amber-300/40">
           <CheckCircle className="w-4 h-4 shrink-0" />
           <span className="truncate">{notification}</span>
         </div>
@@ -616,24 +620,24 @@ export default function App() {
         </div>
 
         {/* Search, Categories & Quick Key Filter */}
-        <div className="bg-[#0f1422]/95 border border-slate-800/80 rounded-2xl p-2.5 sm:p-3 shadow-sm space-y-2.5">
+        <div className="bg-[#220d02]/90 border border-amber-700/35 rounded-2xl p-2.5 sm:p-3 shadow-lg shadow-orange-950/40 space-y-2.5 backdrop-blur-md">
           {/* Search & Main Add Button */}
           <div className="flex items-center gap-2">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-amber-500/70 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="search-pads-input"
                 type="text"
                 placeholder="Buscar por nome, tom (C, D, G...), BPM..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-slate-950/80 border border-slate-700/60 rounded-xl text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+                className="w-full pl-9 pr-8 py-2 bg-[#140600]/90 border border-amber-800/50 rounded-xl text-xs sm:text-sm text-amber-100 placeholder-amber-600/60 focus:outline-none focus:border-amber-400 transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 hover:text-white p-1"
                 >
                   ✕
                 </button>
@@ -644,7 +648,7 @@ export default function App() {
             <button
               id="btn-upload-pads"
               onClick={() => setIsUploadOpen(true)}
-              className="h-9 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
               title="Adicionar novos arquivos de áudio"
             >
               <Plus className="w-4 h-4" />
@@ -667,15 +671,15 @@ export default function App() {
 
           {/* Quick Musical Key Filter (Touch Slider with smooth scrolling) */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5 text-xs">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0">
-              <Filter className="w-3 h-3" /> Tom:
+            <span className="text-[10px] font-bold text-amber-400/80 uppercase tracking-wider pr-1 flex items-center gap-1 shrink-0">
+              <Filter className="w-3 h-3 text-amber-400" /> Tom:
             </span>
             <button
               onClick={() => setSelectedKey('all')}
               className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 ${
                 selectedKey === 'all'
-                  ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                  ? 'bg-amber-400 text-slate-950 shadow-sm shadow-amber-500/40'
+                  : 'bg-[#180700] text-amber-300/80 border border-amber-900/60 hover:text-white hover:border-amber-700'
               }`}
             >
               Todos
@@ -686,8 +690,8 @@ export default function App() {
                 onClick={() => setSelectedKey(selectedKey === k ? 'all' : k)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 active:scale-95 ${
                   selectedKey === k
-                    ? 'bg-cyan-500 text-slate-950 shadow-sm shadow-cyan-500/30'
-                    : 'bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white'
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 shadow-sm shadow-amber-500/30 font-black'
+                    : 'bg-[#180700] text-amber-200/90 border border-amber-900/60 hover:border-amber-500/60 hover:text-white'
                 }`}
               >
                 {k}
@@ -701,8 +705,8 @@ export default function App() {
               onClick={() => setSelectedCategory('all')}
               className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
                 selectedCategory === 'all'
-                  ? 'bg-slate-800 text-cyan-300 border border-cyan-500/40'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                  ? 'bg-amber-500/25 text-amber-200 border border-amber-500/50 shadow-xs'
+                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -713,11 +717,11 @@ export default function App() {
               onClick={() => setSelectedCategory('worship')}
               className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
                 selectedCategory === 'worship'
-                  ? 'bg-slate-800 text-amber-300 border border-amber-500/40'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
+                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Worship ({categoryCounts.worship})</span>
             </button>
 
@@ -725,11 +729,11 @@ export default function App() {
               onClick={() => setSelectedCategory('ritmo')}
               className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
                 selectedCategory === 'ritmo'
-                  ? 'bg-slate-800 text-sky-300 border border-sky-500/40'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                  ? 'bg-orange-500/25 text-orange-200 border border-orange-500/50 shadow-xs'
+                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
               }`}
             >
-              <Clock className="w-3.5 h-3.5" />
+              <Clock className="w-3.5 h-3.5 text-orange-400" />
               <span>Ritmos ({categoryCounts.ritmo})</span>
             </button>
 
@@ -737,11 +741,11 @@ export default function App() {
               onClick={() => setSelectedCategory('percussao')}
               className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
                 selectedCategory === 'percussao'
-                  ? 'bg-slate-800 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                  ? 'bg-amber-600/25 text-amber-200 border border-amber-600/50 shadow-xs'
+                  : 'bg-[#180700]/70 text-amber-400/70 hover:text-amber-200 border border-amber-900/50'
               }`}
             >
-              <Music className="w-3.5 h-3.5" />
+              <Music className="w-3.5 h-3.5 text-amber-400" />
               <span>Percussão ({categoryCounts.percussao})</span>
             </button>
 
@@ -751,11 +755,11 @@ export default function App() {
               onClick={() => setSelectedCategory('presentation')}
               className={`px-3 py-1 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 active:scale-95 ${
                 selectedCategory === 'presentation'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-xs'
-                  : 'bg-slate-900/60 text-amber-400/70 hover:text-amber-300 border border-slate-800/60'
+                  ? 'bg-amber-500 text-slate-950 font-bold border border-amber-400 shadow-sm'
+                  : 'bg-[#180700]/70 text-amber-400 hover:text-amber-200 border border-amber-900/50'
               }`}
             >
-              <ListMusic className="w-3.5 h-3.5 text-amber-400" />
+              <ListMusic className="w-3.5 h-3.5" />
               <span>Apresentação ({categoryCounts.presentation})</span>
             </button>
 

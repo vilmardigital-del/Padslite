@@ -54,18 +54,18 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="w-full bg-[#0d121f]/95 border-b border-slate-800/80 backdrop-blur-xl sticky top-0 z-30 transition-all">
+    <header className="w-full bg-[#1c0a01]/95 border-b border-amber-600/30 backdrop-blur-xl sticky top-0 z-30 transition-all shadow-md shadow-orange-950/20">
       <div className="max-w-4xl mx-auto px-3 sm:px-5 h-14 flex items-center justify-between gap-2">
         {/* Brand & Pad Count Indicator */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-cyan-500/25 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-orange-500/25 shrink-0">
             <Music2 className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="font-bold text-white text-sm sm:text-base tracking-tight truncate">
+            <h1 className="font-bold text-amber-100 text-sm sm:text-base tracking-tight truncate">
               Pads Player
             </h1>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800/90 text-cyan-300 border border-slate-700/80 shrink-0">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-[#2a1002] text-amber-300 border border-amber-750/60 shrink-0">
               {totalPadsCount}
             </span>
           </div>
@@ -79,8 +79,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setShowVolumePopup(!showVolumePopup)}
               className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
                 showVolumePopup
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-sm'
-                  : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-400 font-bold shadow-sm'
+                  : 'bg-[#240e02]/90 text-amber-200 border-amber-800/60 hover:text-white hover:border-amber-600'
               }`}
               title="Volume Master"
             >
@@ -89,10 +89,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {showVolumePopup && (
-              <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-50 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex justify-between text-xs text-slate-300 font-medium">
+              <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-[#240e02] border border-amber-600/50 rounded-2xl shadow-2xl z-50 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex justify-between text-xs text-amber-200 font-medium">
                   <span>Volume Geral</span>
-                  <span className="font-mono text-cyan-400">{Math.round(masterVolume * 100)}%</span>
+                  <span className="font-mono text-amber-400">{Math.round(masterVolume * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -101,9 +101,9 @@ export const Header: React.FC<HeaderProps> = ({
                   step="0.01"
                   value={masterVolume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
+                  className="w-full accent-amber-500 h-2 bg-[#160800] rounded-lg cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-500 pt-1">
+                <div className="flex justify-between text-[10px] text-amber-400/80 pt-1">
                   <button onClick={() => handleVolumeChange(0.5)} className="hover:text-white">50%</button>
                   <button onClick={() => handleVolumeChange(0.85)} className="hover:text-white">85%</button>
                   <button onClick={() => handleVolumeChange(1.0)} className="hover:text-white">100%</button>
@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
               className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
                 playlistCount > 0
                   ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                  : 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-slate-800 hover:border-amber-500/40'
+                  : 'bg-[#240e02]/90 hover:bg-[#2e1303] text-amber-300 border-amber-800/60 hover:border-amber-500/40'
               }`}
               title="Playlist de Apresentação (áudios escalados para o palco)"
             >
@@ -151,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="btn-open-upload"
             onClick={onOpenUpload}
-            className="h-9 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-500/25 active:scale-95 transition-all cursor-pointer"
+            className="h-9 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
             title="Adicionar novos áudios"
           >
             <UploadCloud className="w-3.5 h-3.5" />
@@ -169,13 +169,13 @@ export const Header: React.FC<HeaderProps> = ({
             }}
             className={`h-9 px-2.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer select-none ${
               isFullscreen
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10'
-                : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                : 'bg-[#240e02]/90 text-amber-200 border-amber-800/60 hover:text-white hover:border-amber-600'
             }`}
             title={isFullscreen ? 'Sair da Tela Cheia' : 'Ativar Tela Cheia'}
           >
             {isFullscreen ? (
-              <Minimize className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <Minimize className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             ) : (
               <Maximize className="w-3.5 h-3.5 shrink-0" />
             )}
@@ -188,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="btn-cloud-info"
             onClick={onOpenCloudInfo}
-            className="h-9 w-9 rounded-xl bg-slate-900/90 border border-slate-800 text-sky-400 flex items-center justify-center transition-all active:scale-95 hover:border-slate-700"
+            className="h-9 w-9 rounded-xl bg-[#240e02]/90 border border-amber-800/60 text-amber-400 flex items-center justify-center transition-all active:scale-95 hover:border-amber-500/60"
             title="Armazenamento em Nuvem"
           >
             <Cloud className="w-4 h-4" />

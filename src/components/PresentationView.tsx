@@ -109,17 +109,17 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
   return (
     <div
       id="presentation-fullscreen-root"
-      className="fixed inset-0 z-[100] bg-[#050811] text-white flex flex-col select-none overflow-hidden"
+      className="fixed inset-0 z-[100] bg-gradient-to-br from-[#190700] via-[#2c0f01] to-[#150500] text-amber-50 flex flex-col select-none overflow-hidden"
     >
       {/* Ultra-Minimal Stage HUD (Discrete top strip - NO standard header or banner) */}
-      <div className="h-11 sm:h-12 px-3 sm:px-6 bg-[#090e1c]/90 border-b border-slate-800/80 flex items-center justify-between gap-2 shrink-0 backdrop-blur-md">
+      <div className="h-11 sm:h-12 px-3 sm:px-6 bg-[#1a0800]/95 border-b border-amber-700/50 flex items-center justify-between gap-2 shrink-0 backdrop-blur-md shadow-md shadow-orange-950/20">
         {/* Left: Setlist Badge & Exit */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             id="btn-exit-presentation"
             type="button"
             onClick={onExit}
-            className="h-8 px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 active:scale-95 border border-slate-700/60"
+            className="h-8 px-2.5 rounded-lg bg-[#2b1002] hover:bg-[#381503] text-amber-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 active:scale-95 border border-amber-800/60"
             title="Sair da tela de apresentação (Esc)"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -127,8 +127,8 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
           </button>
 
           <div className="flex items-center gap-1.5 pl-1 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider truncate">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span className="text-xs font-bold text-amber-200 uppercase tracking-wider truncate">
               Apresentação ({playlistPads.length})
             </span>
           </div>
@@ -177,8 +177,8 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
               onClick={() => setShowVolumePopup(!showVolumePopup)}
               className={`h-8 px-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 ${
                 showVolumePopup
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400'
-                  : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:text-white'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                  : 'bg-[#280f02] text-amber-200 border-amber-800/60 hover:text-white'
               }`}
               title="Ajustar Volume Master"
             >
@@ -187,10 +187,10 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
             </button>
 
             {showVolumePopup && (
-              <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 space-y-2">
-                <div className="flex justify-between text-xs text-slate-300 font-medium">
+              <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-[#240e02] border border-amber-700/60 rounded-xl shadow-2xl z-50 space-y-2">
+                <div className="flex justify-between text-xs text-amber-200 font-medium">
                   <span>Volume Master</span>
-                  <span className="font-mono text-cyan-400">{Math.round(masterVolume * 100)}%</span>
+                  <span className="font-mono text-amber-400">{Math.round(masterVolume * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -199,7 +199,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                   step="0.01"
                   value={masterVolume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
+                  className="w-full accent-amber-500 h-2 bg-[#140600] rounded-lg cursor-pointer"
                 />
               </div>
             )}
@@ -209,7 +209,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
           <button
             type="button"
             onClick={onOpenPlaylistManager}
-            className="h-8 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+            className="h-8 px-2.5 rounded-lg bg-[#280f02] border border-amber-800/60 hover:border-amber-600/70 text-amber-200 hover:text-white text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
             title="Editar lista de áudios escalados"
           >
             <ListMusic className="w-3.5 h-3.5 text-amber-400" />
@@ -220,7 +220,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
           <button
             type="button"
             onClick={onToggleFullscreen}
-            className="h-8 w-8 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+            className="h-8 w-8 rounded-lg bg-[#280f02] border border-amber-800/60 text-amber-300 hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
             title={isFullscreen ? 'Sair do modo Tela Cheia' : 'Ativar Tela Cheia Total'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -230,7 +230,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
           <button
             type="button"
             onClick={onExit}
-            className="h-8 w-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+            className="h-8 w-8 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 flex items-center justify-center transition-all cursor-pointer active:scale-95"
             title="Sair da tela cheia de apresentação (Esc)"
           >
             <X className="w-4 h-4" />
@@ -241,20 +241,20 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
       {/* Main Presentation Stage - 100% Fullscreen Audio Grid (NO footer, ONLY the audios) */}
       <div className="flex-1 p-2 sm:p-4 md:p-5 overflow-y-auto flex flex-col justify-center">
         {playlistPads.length === 0 ? (
-          <div className="max-w-md mx-auto text-center p-8 bg-slate-900/60 border border-slate-800 rounded-3xl space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+          <div className="max-w-md mx-auto text-center p-8 bg-[#200c02]/80 border border-amber-800/50 rounded-3xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
               <ListMusic className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white">Nenhum áudio escalado</h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <h2 className="text-base sm:text-lg font-bold text-amber-100">Nenhum áudio escalado</h2>
+              <p className="text-xs text-amber-300/70 mt-1">
                 Selecione os áudios que você irá usar na sua apresentação para exibi-los nesta tela.
               </p>
             </div>
             <button
               type="button"
               onClick={onOpenPlaylistManager}
-              className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all cursor-pointer active:scale-95"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
             >
               Escalar Áudios da Apresentação
             </button>
@@ -274,8 +274,8 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                   key={`presentation-${pad.id}`}
                   className={`group relative rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer touch-manipulation ${
                     isPlaying
-                      ? 'border-rose-500 bg-gradient-to-b from-slate-900 to-[#190d16] shadow-2xl shadow-rose-500/30 ring-2 ring-rose-500/80 scale-[1.01]'
-                      : 'border-slate-800 bg-[#0c1220]/95 hover:border-slate-700 hover:bg-[#11192e] active:scale-[0.98]'
+                      ? 'border-amber-400 bg-gradient-to-b from-[#3d1602] to-[#200b01] shadow-2xl shadow-orange-500/30 ring-2 ring-amber-400/80 scale-[1.01]'
+                      : 'border-amber-900/50 bg-[#220d02]/95 hover:border-amber-500/60 hover:bg-[#2c1103] active:scale-[0.98]'
                   }`}
                   onClick={() => onTogglePlay(pad)}
                 >
@@ -283,7 +283,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                   <div className="p-2.5 sm:p-3 flex items-center justify-between gap-1.5">
                     {/* Index & Key */}
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] font-mono font-bold text-slate-300 flex items-center justify-center">
+                      <span className="w-6 h-6 rounded-lg bg-[#170600] border border-amber-900/60 text-[11px] font-mono font-bold text-amber-300 flex items-center justify-center">
                         {String(idx + 1).padStart(2, '0')}
                       </span>
 
@@ -291,22 +291,22 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                         <span
                           className="px-2.5 py-0.5 text-xs sm:text-sm font-black font-mono rounded-lg border tracking-wider shadow-sm"
                           style={{
-                            backgroundColor: `${pad.color || '#38bdf8'}22`,
-                            borderColor: `${pad.color || '#38bdf8'}60`,
-                            color: pad.color || '#38bdf8'
+                            backgroundColor: `${pad.color || '#f59e0b'}22`,
+                            borderColor: `${pad.color || '#f59e0b'}60`,
+                            color: pad.color || '#fbbf24'
                           }}
                         >
                           {pad.musicalKey}
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded-md">
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-300/80 bg-amber-950/60 px-2 py-0.5 rounded-md">
                           {getCategoryIcon(pad.category)}
                           <span className="capitalize">{pad.category}</span>
                         </span>
                       )}
 
                       {pad.bpm && (
-                        <span className="px-1.5 py-0.5 text-[10px] sm:text-[11px] font-mono font-semibold rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/60">
+                        <span className="px-1.5 py-0.5 text-[10px] sm:text-[11px] font-mono font-semibold rounded-md bg-[#160600] text-amber-200 border border-amber-900/60">
                           {pad.bpm} BPM
                         </span>
                       )}
@@ -321,8 +321,8 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                       }}
                       className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
                         pad.isLoop
-                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                          : 'bg-slate-800/70 text-slate-400 border border-slate-700/50 hover:text-slate-200'
+                          ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
+                          : 'bg-[#180700] text-amber-400/60 border border-amber-900/60 hover:text-amber-200'
                       }`}
                       title={pad.isLoop ? 'Modo Repetição Contínua (Loop)' : 'Toque Único'}
                     >
@@ -337,19 +337,19 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                     <div
                       className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center transition-all duration-200 ${
                         isPlaying
-                          ? 'scale-110 shadow-2xl ring-4 ring-rose-400/90'
-                          : 'shadow-lg border border-slate-700/70 group-hover:border-slate-500'
+                          ? 'scale-110 shadow-2xl ring-4 ring-amber-400/90'
+                          : 'shadow-lg border border-amber-800/60 group-hover:border-amber-500/70'
                       }`}
                       style={{
-                        backgroundColor: isPlaying ? '#e11d48' : '#141c2e',
+                        backgroundColor: isPlaying ? '#ea580c' : '#2b1002',
                         boxShadow: isPlaying
-                          ? '0 0 35px rgba(225, 29, 72, 0.75)'
+                          ? '0 0 35px rgba(234, 88, 12, 0.75)'
                           : 'inset 0 1px 0 rgba(255,255,255,0.08)',
-                        color: isPlaying ? '#ffffff' : pad.color || '#38bdf8'
+                        color: isPlaying ? '#ffffff' : pad.color || '#f59e0b'
                       }}
                     >
                       {isLoading ? (
-                        <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin text-cyan-300" />
+                        <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 animate-spin text-amber-300" />
                       ) : isPlaying ? (
                         <Square className="w-8 h-8 sm:w-10 sm:h-10 fill-current animate-pulse" />
                       ) : (
@@ -358,23 +358,23 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                     </div>
 
                     {/* Audio Title */}
-                    <h3 className="mt-3 font-extrabold text-sm sm:text-base md:text-lg text-slate-100 line-clamp-2 max-w-[95%] tracking-tight">
+                    <h3 className="mt-3 font-extrabold text-sm sm:text-base md:text-lg text-amber-100 line-clamp-2 max-w-[95%] tracking-tight">
                       {pad.name}
                     </h3>
 
                     {/* Active State Pill */}
                     <div className="mt-1.5 flex items-center justify-center gap-1.5 text-xs">
                       {isLoading ? (
-                        <span className="text-cyan-400 font-semibold flex items-center gap-1">
+                        <span className="text-amber-400 font-semibold flex items-center gap-1">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando...
                         </span>
                       ) : isPlaying ? (
-                        <span className="text-rose-400 font-black flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping inline-block" />
+                        <span className="text-orange-400 font-black flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping inline-block" />
                           EM EXECUÇÃO
                         </span>
                       ) : (
-                        <span className="text-slate-400 font-medium text-[11px] sm:text-xs">
+                        <span className="text-amber-400/60 font-medium text-[11px] sm:text-xs">
                           Toque para iniciar
                         </span>
                       )}
@@ -382,12 +382,12 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
                   </div>
 
                   {/* Bottom Strip: Category and Key shortcut hint */}
-                  <div className="px-3 py-1.5 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <div className="px-3 py-1.5 bg-[#170600]/80 border-t border-amber-900/60 flex items-center justify-between text-[11px] text-amber-300/70 font-mono">
                     <span className="flex items-center gap-1">
                       {getCategoryIcon(pad.category)}
                       <span className="capitalize">{pad.category}</span>
                     </span>
-                    <span className="text-slate-500">Tecla [{idx + 1}]</span>
+                    <span className="text-amber-500/60">Tecla [{idx + 1}]</span>
                   </div>
                 </div>
               );

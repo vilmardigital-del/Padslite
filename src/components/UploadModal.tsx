@@ -140,23 +140,23 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[#0d1322] border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-lg bg-[#1c0a01] border border-amber-800/60 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-3.5 sm:p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/70">
+        <div className="p-3.5 sm:p-4 border-b border-amber-900/60 flex items-center justify-between bg-[#250d01]/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
               <UploadCloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-slate-100 text-sm sm:text-base">Upload de Áudio para Nuvem</h2>
-              <p className="text-[11px] sm:text-xs text-slate-400">
+              <h2 className="font-bold text-amber-100 text-sm sm:text-base">Upload de Áudio para Nuvem</h2>
+              <p className="text-[11px] sm:text-xs text-amber-300/70">
                 Selecione os áudios e escolha a categoria correta
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-amber-400/60 hover:text-white hover:bg-amber-900/40 rounded-lg transition-colors cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -173,8 +173,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-5 sm:p-6 text-center cursor-pointer transition-all ${
               isDragging
-                ? 'border-cyan-400 bg-cyan-500/15'
-                : 'border-slate-700/80 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70'
+                ? 'border-amber-400 bg-amber-500/15'
+                : 'border-amber-700/60 bg-[#220d02]/60 hover:border-amber-500/80 hover:bg-[#2c1203]/70'
             }`}
           >
             <input
@@ -185,31 +185,31 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac"
               className="hidden"
             />
-            <UploadCloud className="w-8 h-8 sm:w-9 sm:h-9 text-cyan-400 mx-auto mb-2" />
-            <p className="text-xs sm:text-sm font-semibold text-slate-200">
+            <UploadCloud className="w-8 h-8 sm:w-9 sm:h-9 text-amber-400 mx-auto mb-2" />
+            <p className="text-xs sm:text-sm font-semibold text-amber-100">
               {filesList.length === 0
                 ? 'Clique para selecionar os arquivos de áudio ou arraste aqui'
                 : 'Clique para adicionar mais arquivos de áudio'}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
+            <p className="text-[10px] sm:text-[11px] text-amber-400/60 mt-1">
               Formatos suportados: .MP3, .WAV, .OGG, .M4A
             </p>
           </div>
 
           {/* 2. PROMPT: ONDE VOCÊ DESEJA COLOCAR ESTE ÁUDIO? */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 sm:p-3.5 space-y-2.5">
+          <div className="bg-[#250d01]/80 border border-amber-800/60 rounded-xl p-3 sm:p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center border border-amber-500/30">
                   ?
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-100">
+                <span className="text-xs sm:text-sm font-bold text-amber-100">
                   {filesList.length <= 1
                     ? 'Onde você quer colocar este áudio?'
                     : 'Onde você quer colocar os áudios?'}
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400 font-medium">
+              <span className="text-[11px] text-amber-300/70 font-medium">
                 Selecione abaixo:
               </span>
             </div>
@@ -223,8 +223,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 onClick={() => handleSelectCategoryForAll('worship')}
                 className={`p-2.5 rounded-xl border text-left transition-all active:scale-95 cursor-pointer relative flex flex-col justify-between ${
                   activeCategory === 'worship'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-200 shadow-md shadow-amber-500/15 ring-1 ring-amber-500/50'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-amber-500/50 hover:bg-slate-900'
+                    ? 'bg-amber-500/25 border-amber-500 text-amber-200 shadow-md shadow-amber-500/20 ring-1 ring-amber-500/60'
+                    : 'bg-[#180700] border-amber-900/60 text-amber-200/80 hover:border-amber-500/50 hover:bg-[#200c02]'
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1">
@@ -237,7 +237,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-amber-300">Worship</div>
-                  <div className="text-[10px] text-slate-400 leading-tight mt-0.5 hidden xs:block">
+                  <div className="text-[10px] text-amber-400/60 leading-tight mt-0.5 hidden xs:block">
                     Pads contínuos & ambiências
                   </div>
                 </div>
@@ -250,21 +250,21 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 onClick={() => handleSelectCategoryForAll('ritmo')}
                 className={`p-2.5 rounded-xl border text-left transition-all active:scale-95 cursor-pointer relative flex flex-col justify-between ${
                   activeCategory === 'ritmo'
-                    ? 'bg-sky-500/20 border-sky-500 text-sky-200 shadow-md shadow-sky-500/15 ring-1 ring-sky-500/50'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-sky-500/50 hover:bg-slate-900'
+                    ? 'bg-orange-500/25 border-orange-500 text-orange-200 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/60'
+                    : 'bg-[#180700] border-amber-900/60 text-amber-200/80 hover:border-orange-500/50 hover:bg-[#200c02]'
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <Clock className="w-4 h-4 text-sky-400" />
+                  <Clock className="w-4 h-4 text-orange-400" />
                   {activeCategory === 'ritmo' && (
-                    <span className="w-4 h-4 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center">
+                    <span className="w-4 h-4 rounded-full bg-orange-500 text-slate-950 flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-sky-300">Ritmo</div>
-                  <div className="text-[10px] text-slate-400 leading-tight mt-0.5 hidden xs:block">
+                  <div className="text-xs font-bold text-orange-300">Ritmo</div>
+                  <div className="text-[10px] text-amber-400/60 leading-tight mt-0.5 hidden xs:block">
                     Loops & batidas com BPM
                   </div>
                 </div>
@@ -277,21 +277,21 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 onClick={() => handleSelectCategoryForAll('percussao')}
                 className={`p-2.5 rounded-xl border text-left transition-all active:scale-95 cursor-pointer relative flex flex-col justify-between ${
                   activeCategory === 'percussao'
-                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200 shadow-md shadow-emerald-500/15 ring-1 ring-emerald-500/50'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-emerald-500/50 hover:bg-slate-900'
+                    ? 'bg-yellow-500/25 border-yellow-500 text-yellow-200 shadow-md shadow-yellow-500/20 ring-1 ring-yellow-500/60'
+                    : 'bg-[#180700] border-amber-900/60 text-amber-200/80 hover:border-yellow-500/50 hover:bg-[#200c02]'
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <Music className="w-4 h-4 text-emerald-400" />
+                  <Music className="w-4 h-4 text-yellow-400" />
                   {activeCategory === 'percussao' && (
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center">
+                    <span className="w-4 h-4 rounded-full bg-yellow-500 text-slate-950 flex items-center justify-center">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-emerald-300">Percussão</div>
-                  <div className="text-[10px] text-slate-400 leading-tight mt-0.5 hidden xs:block">
+                  <div className="text-xs font-bold text-yellow-300">Percussão</div>
+                  <div className="text-[10px] text-amber-400/60 leading-tight mt-0.5 hidden xs:block">
                     Samba, batucadas e acústico
                   </div>
                 </div>
@@ -300,7 +300,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           </div>
 
           {errorMessage && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+            <div className="p-3 bg-rose-500/15 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -310,14 +310,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           {filesList.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <FileAudio className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-amber-300/80 flex items-center gap-1.5">
+                  <FileAudio className="w-3.5 h-3.5 text-amber-400" />
                   {filesList.length} arquivo(s) preparado(s)
                 </span>
                 <button
                   type="button"
                   onClick={() => setFilesList([])}
-                  className="text-xs text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                  className="text-xs text-amber-400/60 hover:text-rose-400 transition-colors cursor-pointer"
                 >
                   Limpar todos
                 </button>
@@ -327,20 +327,20 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 {filesList.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs"
+                    className="p-2.5 rounded-xl bg-[#240e02] border border-amber-900/60 space-y-2 text-xs"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 truncate pr-1">
-                        <FileAudio className="w-4 h-4 text-cyan-400 shrink-0" />
-                        <span className="truncate text-slate-200 font-medium">{item.file.name}</span>
-                        <span className="text-slate-500 shrink-0 text-[10px]">
+                        <FileAudio className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span className="truncate text-amber-100 font-medium">{item.file.name}</span>
+                        <span className="text-amber-500/60 shrink-0 text-[10px]">
                           ({(item.file.size / (1024 * 1024)).toFixed(2)} MB)
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => removeFile(item.id)}
-                        className="p-1 hover:text-rose-400 text-slate-400 transition-colors cursor-pointer shrink-0"
+                        className="p-1 hover:text-rose-400 text-amber-400/60 transition-colors cursor-pointer shrink-0"
                         title="Remover arquivo"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -348,8 +348,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                     </div>
 
                     {/* Per-file category selector pills */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-                      <span className="text-[10px] text-slate-400 font-medium">Colocar em:</span>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-900/60">
+                      <span className="text-[10px] text-amber-300/70 font-medium">Colocar em:</span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -357,7 +357,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer ${
                             item.category === 'worship'
                               ? 'bg-amber-500 text-slate-950 font-bold'
-                              : 'bg-slate-800 text-amber-300/80 hover:bg-slate-700'
+                              : 'bg-[#180700] text-amber-300/80 hover:bg-[#200c02]'
                           }`}
                         >
                           ✨ Worship
@@ -367,8 +367,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           onClick={() => handleSetFileCategory(item.id, 'ritmo')}
                           className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer ${
                             item.category === 'ritmo'
-                              ? 'bg-sky-500 text-slate-950 font-bold'
-                              : 'bg-slate-800 text-sky-300/80 hover:bg-slate-700'
+                              ? 'bg-orange-500 text-slate-950 font-bold'
+                              : 'bg-[#180700] text-orange-300/80 hover:bg-[#200c02]'
                           }`}
                         >
                           ⏱️ Ritmo
@@ -378,8 +378,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           onClick={() => handleSetFileCategory(item.id, 'percussao')}
                           className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer ${
                             item.category === 'percussao'
-                              ? 'bg-emerald-500 text-slate-950 font-bold'
-                              : 'bg-slate-800 text-emerald-300/80 hover:bg-slate-700'
+                              ? 'bg-yellow-500 text-slate-950 font-bold'
+                              : 'bg-[#180700] text-yellow-300/80 hover:bg-[#200c02]'
                           }`}
                         >
                           🥁 Percussão
@@ -394,11 +394,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3.5 sm:p-4 border-t border-slate-800 flex items-center justify-between gap-2.5 bg-slate-950/70">
-          <div className="text-[11px] text-slate-400 truncate">
+        <div className="p-3.5 sm:p-4 border-t border-amber-900/60 flex items-center justify-between gap-2.5 bg-[#150600]/90">
+          <div className="text-[11px] text-amber-300/70 truncate">
             {filesList.length > 0 ? (
               <span>
-                Destino: <strong className="text-slate-200">{getCategoryTitle(activeCategory)}</strong>
+                Destino: <strong className="text-amber-100">{getCategoryTitle(activeCategory)}</strong>
               </span>
             ) : (
               <span>Selecione os arquivos de áudio acima</span>
@@ -410,7 +410,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isUploading}
-              className="px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-3.5 py-2 text-xs sm:text-sm font-medium text-amber-400/70 hover:text-white rounded-xl hover:bg-amber-900/30 transition-colors cursor-pointer"
             >
               Cancelar
             </button>
@@ -421,8 +421,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               disabled={isUploading || filesList.length === 0}
               className={`px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
                 filesList.length > 0 && !isUploading
-                  ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/25 active:scale-95'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold shadow-lg shadow-amber-500/25 active:scale-95'
+                  : 'bg-[#250f02] text-amber-700/50 cursor-not-allowed'
               }`}
             >
               {isUploading ? (

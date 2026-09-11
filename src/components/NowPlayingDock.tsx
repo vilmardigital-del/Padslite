@@ -21,20 +21,20 @@ export const NowPlayingDock: React.FC<NowPlayingDockProps> = ({
 
   return (
     <div className="fixed bottom-3 inset-x-3 sm:inset-x-6 z-40 max-w-2xl mx-auto pointer-events-none">
-      <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 shadow-2xl shadow-black/80 flex items-center justify-between gap-2 sm:gap-3 ring-1 ring-white/10 animate-in fade-in slide-in-from-bottom-3 duration-200">
+      <div className="pointer-events-auto bg-[#1f0b01]/95 backdrop-blur-xl border border-amber-600/40 rounded-2xl p-2.5 sm:p-3 shadow-2xl shadow-black/80 flex items-center justify-between gap-2 sm:gap-3 ring-1 ring-amber-500/20 animate-in fade-in slide-in-from-bottom-3 duration-200">
         {/* Active Track Info */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1 pl-1">
           {/* Tone Badge or Icon */}
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-inner"
             style={{
-              backgroundColor: activePad?.color ? `${activePad.color}25` : 'rgba(6, 182, 212, 0.15)',
-              border: `1.5px solid ${activePad?.color || '#06b6d4'}`,
-              color: activePad?.color || '#38bdf8'
+              backgroundColor: activePad?.color ? `${activePad.color}25` : 'rgba(245, 158, 11, 0.15)',
+              border: `1.5px solid ${activePad?.color || '#f59e0b'}`,
+              color: activePad?.color || '#fbbf24'
             }}
           >
-            {activePad?.keyNote ? (
-              <span className="font-mono text-xs">{activePad.keyNote}</span>
+            {activePad?.musicalKey ? (
+              <span className="font-mono text-xs">{activePad.musicalKey}</span>
             ) : (
               <Radio className="w-4 h-4 animate-pulse" />
             )}
@@ -42,12 +42,12 @@ export const NowPlayingDock: React.FC<NowPlayingDockProps> = ({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block shrink-0" />
-              <p className="font-bold text-xs sm:text-sm text-white truncate">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping inline-block shrink-0" />
+              <p className="font-bold text-xs sm:text-sm text-amber-100 truncate">
                 {activePad?.name || 'Carregando áudio...'}
               </p>
             </div>
-            <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+            <p className="text-[11px] text-amber-300/70 truncate flex items-center gap-1 mt-0.5">
               <span>{isLoading ? 'Decodificando original...' : 'Em reprodução contínua'}</span>
               {activePad?.bpm && (
                 <>
@@ -66,8 +66,8 @@ export const NowPlayingDock: React.FC<NowPlayingDockProps> = ({
               onClick={onToggleLoop}
               className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all active:scale-95 ${
                 isLoop
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                  : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-slate-700/60'
+                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
+                  : 'bg-[#2b1002]/80 text-amber-400/60 hover:text-amber-200 border border-amber-900/60'
               }`}
               title={isLoop ? 'Loop Ativo' : 'Disparo Único'}
             >
