@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { auth } from '../services/firebase';
 import {
   Volume2,
   SlidersHorizontal,
@@ -42,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [masterFilter, setMasterFilter] = useState(20000);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [showFilterControl, setShowFilterControl] = useState(false);
+  
+  const isAdmin = auth.currentUser?.email === 'vilmardigital@gmail.com';
 
   const handleVolumeChange = (val: number) => {
     setMasterVolume(val);
@@ -185,14 +188,16 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Cloud Info Button */}
-          <button
-            id="btn-cloud-info"
-            onClick={onOpenCloudInfo}
-            className="h-9 w-9 rounded-xl bg-[#0d224d]/90 border border-blue-500/40 text-blue-200 flex items-center justify-center transition-all active:scale-95 hover:border-blue-400 hover:text-white shadow-sm"
-            title="Armazenamento em Nuvem"
-          >
-            <Cloud className="w-4 h-4" />
-          </button>
+          {isAdmin && (
+            <button
+              id="btn-cloud-info"
+              onClick={onOpenCloudInfo}
+              className="h-9 w-9 rounded-xl bg-[#0d224d]/90 border border-blue-500/40 text-blue-200 flex items-center justify-center transition-all active:scale-95 hover:border-blue-400 hover:text-white shadow-sm"
+              title="Armazenamento em Nuvem"
+            >
+              <Cloud className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

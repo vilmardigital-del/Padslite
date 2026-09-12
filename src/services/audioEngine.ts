@@ -7,6 +7,9 @@ interface ActivePadState {
   filterNode?: BiquadFilterNode;
   pannerNode?: StereoPannerNode;
   startTime: number;
+  pad: PadItem;
+  isStopping?: boolean;
+  stopTimeout?: number;
 }
 
 class AudioEngine {
@@ -19,6 +22,7 @@ class AudioEngine {
   private pendingLoads: Set<string> = new Set();
   private listeners: Set<(padId: string, isPlaying: boolean) => void> = new Set();
   private loadingListeners: Set<(padId: string, isLoading: boolean) => void> = new Set();
+  private fadingListeners: Set<(padId: string, isFading: boolean) => void> = new Set();
 
   private metronomeTimer: number | null = null;
   private isMetronomeActive: boolean = false;
@@ -76,6 +80,11 @@ class AudioEngine {
     return () => this.loadingListeners.delete(fn);
   }
 
+  public subscribeFadingOut(fn: (padId: string, isFading: boolean) => void) {
+    this.fadingListeners.add(fn);
+    return () => this.fadingListeners.delete(fn);
+  }
+
   private notify(padId: string, isPlaying: boolean) {
     this.listeners.forEach(fn => fn(padId, isPlaying));
   }
@@ -84,8 +93,16 @@ class AudioEngine {
     this.loadingListeners.forEach(fn => fn(padId, isLoading));
   }
 
+  private notifyFading(padId: string, isFading: boolean) {
+    this.fadingListeners.forEach(fn => fn(padId, isFading));
+  }
+
   public isPadLoading(padId: string): boolean {
     return this.pendingLoads.has(padId);
+  }
+
+  public isPadFading(padId: string): boolean {
+    return this.activePads.get(padId)?.isStopping ?? false;
   }
 
   // Load and decode pure original audio file with ZERO AI/synthetic alteration
@@ -145,10 +162,17 @@ class AudioEngine {
     this.init();
     if (!this.ctx || !this.masterGain) return;
 
-    // If this pad is currently playing, clicking again stops it immediately
-    if (this.activePads.has(pad.id)) {
-      this.stopPad(pad.id);
-      return;
+    // If this pad is currently playing or fading out:
+    const currentActive = this.activePads.get(pad.id);
+    if (currentActive) {
+      if (currentActive.isStopping) {
+        // If it was already fading out, stop the fading instance cleanly and restart fresh
+        this.terminateActivePad(pad.id, currentActive);
+      } else {
+        // Clicking on a currently playing pad stops it with smooth fade out
+        this.stopPad(pad.id);
+        return;
+      }
     }
 
     // If already loading this pad, cancel it
@@ -171,9 +195,10 @@ class AudioEngine {
       this.pendingLoads.delete(pad.id);
       this.notifyLoading(pad.id, false);
 
-      // Stop any existing instance of this pad if present
-      if (this.activePads.has(pad.id)) {
-        this.stopPad(pad.id);
+      // Clean up any leftover instance of this pad if present
+      const leftover = this.activePads.get(pad.id);
+      if (leftover) {
+        this.terminateActivePad(pad.id, leftover);
       }
 
       const now = this.ctx.currentTime;
@@ -183,9 +208,18 @@ class AudioEngine {
 
       const gainNode = this.ctx.createGain();
       const targetVol = pad.volume !== undefined ? pad.volume : 0.9;
-      // Start with original volume cleanly and immediately (0.005s fast micro-ramp avoids click)
-      gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.linearRampToValueAtTime(Math.max(0.001, targetVol), now + 0.008);
+      const fadeIn = typeof pad.fadeInTime === 'number' ? pad.fadeInTime : (pad.category === 'worship' ? 1.5 : 0);
+
+      // Fade in smoothly according to pad.fadeInTime
+      gainNode.gain.cancelScheduledValues(now);
+      if (fadeIn > 0.02) {
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.linearRampToValueAtTime(Math.max(0.001, targetVol), now + fadeIn);
+      } else {
+        // Instant micro-fade to eliminate clicks
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.linearRampToValueAtTime(Math.max(0.001, targetVol), now + 0.008);
+      }
 
       let lastNode: AudioNode = source;
 
@@ -212,9 +246,9 @@ class AudioEngine {
       gainNode.connect(this.masterGain);
 
       source.onended = () => {
-        if (this.activePads.get(pad.id)?.source === source) {
-          this.activePads.delete(pad.id);
-          this.notify(pad.id, false);
+        const item = this.activePads.get(pad.id);
+        if (item && item.source === source) {
+          this.terminateActivePad(pad.id, item);
         }
       };
 
@@ -225,6 +259,8 @@ class AudioEngine {
         filterNode,
         pannerNode,
         startTime: now,
+        pad,
+        isStopping: false,
       });
 
       this.notify(pad.id, true);
@@ -238,8 +274,29 @@ class AudioEngine {
     }
   }
 
-  // Stop a specific pad immediately
-  public stopPad(padId: string, _fadeOutTime?: number) {
+  // Internal helper to cleanly terminate an active pad and disconnect all Web Audio nodes
+  private terminateActivePad(padId: string, active: ActivePadState) {
+    if (active.stopTimeout) {
+      window.clearTimeout(active.stopTimeout);
+      active.stopTimeout = undefined;
+    }
+    try {
+      active.source.stop();
+      active.source.disconnect();
+      active.gainNode.disconnect();
+      if (active.filterNode) active.filterNode.disconnect();
+      if (active.pannerNode) active.pannerNode.disconnect();
+    } catch {
+      // Safe catch if already stopped
+    }
+
+    this.activePads.delete(padId);
+    this.notifyFading(padId, false);
+    this.notify(padId, false);
+  }
+
+  // Stop a specific pad with configured or custom fade out
+  public stopPad(padId: string, customFadeOut?: number) {
     // If it was still loading, cancel loading immediately
     if (this.pendingLoads.has(padId)) {
       this.pendingLoads.delete(padId);
@@ -248,49 +305,94 @@ class AudioEngine {
 
     const active = this.activePads.get(padId);
     if (!active || !this.ctx) {
-      // Ensure UI is notified even if already stopped
       this.notify(padId, false);
       return;
     }
 
-    // IMMEDIATELY remove from active map so UI updates instantly without lag
-    this.activePads.delete(padId);
-    this.notify(padId, false);
+    const fadeOut = customFadeOut !== undefined
+      ? customFadeOut
+      : (typeof active.pad.fadeOutTime === 'number' ? active.pad.fadeOutTime : (active.pad.category === 'worship' ? 2.5 : 0.1));
+
+    // If already in the middle of stopping:
+    if (active.isStopping) {
+      if (fadeOut <= 0.02) {
+        // Immediate force stop
+        this.terminateActivePad(padId, active);
+      }
+      return;
+    }
 
     const now = this.ctx.currentTime;
-    try {
-      // 15ms fast micro-fade to avoid speaker pops/clicks, then hard stop
-      active.gainNode.gain.cancelScheduledValues(now);
-      active.gainNode.gain.setValueAtTime(active.gainNode.gain.value, now);
-      active.gainNode.gain.linearRampToValueAtTime(0, now + 0.015);
+    const currentGain = active.gainNode.gain.value;
+
+    if (fadeOut > 0.03) {
+      active.isStopping = true;
+      this.notifyFading(padId, true);
+
+      try {
+        active.gainNode.gain.cancelScheduledValues(now);
+        active.gainNode.gain.setValueAtTime(Math.max(0.0001, currentGain), now);
+        active.gainNode.gain.linearRampToValueAtTime(0.00001, now + fadeOut);
+      } catch (err) {
+        console.warn('Fade out error:', err);
+      }
+
+      active.stopTimeout = window.setTimeout(() => {
+        this.terminateActivePad(padId, active);
+      }, Math.round(fadeOut * 1000) + 30);
+    } else {
+      // 15ms micro-fade to avoid speaker clicks
+      try {
+        active.gainNode.gain.cancelScheduledValues(now);
+        active.gainNode.gain.setValueAtTime(Math.max(0.0001, currentGain), now);
+        active.gainNode.gain.linearRampToValueAtTime(0, now + 0.015);
+      } catch {}
 
       setTimeout(() => {
-        try {
-          active.source.stop();
-          active.source.disconnect();
-          active.gainNode.disconnect();
-          if (active.filterNode) active.filterNode.disconnect();
-          if (active.pannerNode) active.pannerNode.disconnect();
-        } catch {
-          // Already stopped/disconnected
-        }
+        this.terminateActivePad(padId, active);
       }, 25);
-    } catch {
-      try {
-        active.source.stop();
-        active.source.disconnect();
-        active.gainNode.disconnect();
-      } catch {
-        // Safe catch
+    }
+  }
+
+  // Stop all other pads (used for seamless Worship Crossfade)
+  public stopOtherPads(exceptPadId: string, customFadeOut?: number) {
+    this.pendingLoads.forEach(id => {
+      if (id !== exceptPadId) {
+        this.pendingLoads.delete(id);
+        this.notifyLoading(id, false);
+      }
+    });
+
+    for (const [id, active] of this.activePads.entries()) {
+      if (id !== exceptPadId && !active.isStopping) {
+        this.stopPad(id, customFadeOut);
       }
     }
   }
 
-  // Stop all active pads immediately
-  public stopAll(_fadeOutTime?: number) {
+  // Stop all active pads (with fadeOut or immediate if 0)
+  public stopAll(fadeOutTime?: number) {
     this.pendingLoads.clear();
     const padIds = Array.from(this.activePads.keys());
-    padIds.forEach(id => this.stopPad(id));
+    padIds.forEach(id => this.stopPad(id, fadeOutTime));
+  }
+
+  // Update pad properties in real-time
+  public updatePad(padId: string, updates: Partial<PadItem>) {
+    const active = this.activePads.get(padId);
+    if (active) {
+      active.pad = { ...active.pad, ...updates };
+      if (updates.volume !== undefined && !active.isStopping && this.ctx) {
+        active.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        active.gainNode.gain.setValueAtTime(Math.max(0.0001, updates.volume), this.ctx.currentTime);
+      }
+      if (updates.filterCutoff !== undefined && active.filterNode && this.ctx) {
+        active.filterNode.frequency.setValueAtTime(updates.filterCutoff, this.ctx.currentTime);
+      }
+      if (updates.pan !== undefined && active.pannerNode && 'pan' in active.pannerNode && this.ctx) {
+        active.pannerNode.pan.setValueAtTime(updates.pan, this.ctx.currentTime);
+      }
+    }
   }
 
   public setPadVolume(padId: string, volume: number) {
