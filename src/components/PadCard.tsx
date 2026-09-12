@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PadItem } from '../types';
-import { auth } from '../services/firebase';
 import {
   Play,
   Square,
@@ -46,8 +45,6 @@ export const PadCard: React.FC<PadCardProps> = ({
   const [showMixer, setShowMixer] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   
-  const isAdmin = auth.currentUser?.email === 'vilmardigital@gmail.com';
-
   const handleCopyPublicUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
     const fullUrl = `${window.location.origin}${pad.url}`;
@@ -135,63 +132,61 @@ export const PadCard: React.FC<PadCardProps> = ({
             </button>
           )}
 
-          {isAdmin && (
-            <div className="relative">
-              <button
-                id={`pad-menu-btn-${pad.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowOptions(!showOptions);
-                }}
-                className="p-1 rounded-lg text-blue-300 hover:text-white hover:bg-blue-900/40 active:scale-90 transition-all cursor-pointer"
-                title="Mais opções"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
+          <div className="relative">
+            <button
+              id={`pad-menu-btn-${pad.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOptions(!showOptions);
+              }}
+              className="p-1 rounded-lg text-blue-300 hover:text-white hover:bg-blue-900/40 active:scale-90 transition-all cursor-pointer"
+              title="Mais opções"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
 
-              {showOptions && (
-                <div className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#0a1838]/98 backdrop-blur-2xl border border-blue-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-30 py-1 text-xs animate-in fade-in zoom-in-95 text-white">
-                  <button
-                    onClick={handleCopyPublicUrl}
-                    className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
-                  >
-                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-blue-300" />}
-                    {copiedLink ? 'Link Copiado!' : 'Copiar Link'}
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
-                  >
-                    <Download className="w-3.5 h-3.5 text-blue-300" />
-                    Baixar Arquivo
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowOptions(false);
-                      onEditPad(pad);
-                    }}
-                    className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-blue-300" />
-                    Editar Nome/Tom
-                  </button>
-                  <div className="h-px bg-blue-900/60 my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowOptions(false);
-                      onDeletePad(pad.id);
-                    }}
-                    className="w-full text-left px-3 py-2 text-rose-400 hover:bg-rose-500/15 flex items-center gap-2 cursor-pointer font-medium"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Remover
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+            {showOptions && (
+              <div className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#0a1838]/98 backdrop-blur-2xl border border-blue-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-30 py-1 text-xs animate-in fade-in zoom-in-95 text-white">
+                <button
+                  onClick={handleCopyPublicUrl}
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-blue-300" />}
+                  {copiedLink ? 'Link Copiado!' : 'Copiar Link'}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-300" />
+                  Baixar Arquivo
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowOptions(false);
+                    onEditPad(pad);
+                  }}
+                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-blue-300" />
+                  Editar Nome/Tom
+                </button>
+                <div className="h-px bg-blue-900/60 my-1" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowOptions(false);
+                    onDeletePad(pad.id);
+                  }}
+                  className="w-full text-left px-3 py-2 text-rose-400 hover:bg-rose-500/15 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remover
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

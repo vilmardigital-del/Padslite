@@ -1,6 +1,4 @@
 import { PadItem, CloudStorageStats } from '../types';
-import { db, auth } from './firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import {
   getStoredPads,
   saveStoredPads,
@@ -17,22 +15,13 @@ const PAD_COLORS = [
 ];
 
 export async function fetchPads(): Promise<PadItem[]> {
-  try {
-    const padsCol = collection(db, 'pads');
-    const q = query(padsCol, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.empty) {
-      return getDefaultPads();
-    }
-    
-    const pads = snapshot.docs.map(doc => doc.data() as PadItem);
-    saveStoredPads(pads);
-    return pads;
-  } catch (err) {
-    console.warn('Firestore fetch failed, using local fallback:', err);
-    return getStoredPads() || getDefaultPads();
+  const localPads = getStoredPads();
+  if (localPads && Array.isArray(localPads)) {
+    return localPads;
   }
+  const defaults = getDefaultPads();
+  saveStoredPads(defaults);
+  return defaults;
 }
 
 export async function fetchCloudStats(): Promise<CloudStorageStats> {
@@ -57,11 +46,6 @@ export interface AudioUploadItem {
 export async function uploadAudioFiles(
   items: Array<AudioUploadItem | File>
 ): Promise<{ addedPads: PadItem[]; totalPads: number }> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode fazer upload de áudios.');
-  }
-
   const normalizedItems: AudioUploadItem[] = items.map(item => {
     if (item instanceof File) {
       return { file: item };
@@ -115,11 +99,9 @@ export async function uploadAudioFiles(
       fadeInTime: category === 'worship' ? 1.5 : 0,
       fadeOutTime: category === 'worship' ? 2.5 : 0.05,
       isCustomUpload: true,
-      cloudStored: true,
       createdAt: new Date().toISOString()
     };
 
-    await setDoc(doc(db, 'pads', padId), pad);
     currentPads.push(pad);
     addedPads.push(pad);
   }
@@ -132,32 +114,19 @@ export async function uploadAudioFiles(
   };
 }
 
-export async function updatePadOnServer(id: string, updates: Partial<PadItem>): Promise<PadItem> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode editar pads.');
-  }
-
+export async function updatePad(id: string, updates: Partial<PadItem>): Promise<PadItem> {
   const pads = await fetchPads();
   const index = pads.findIndex(p => p.id === id);
   if (index === -1) throw new Error('Pad não encontrado.');
   
   const updatedPad = { ...pads[index], ...updates, id };
-  await setDoc(doc(db, 'pads', id), updatedPad);
-  
   pads[index] = updatedPad;
   saveStoredPads(pads);
   
   return updatedPad;
 }
 
-export async function deletePadOnServer(id: string): Promise<void> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode remover pads.');
-  }
-
-  await deleteDoc(doc(db, 'pads', id));
+export async function deletePad(id: string): Promise<void> {
   await deleteAudioBlob(id);
   
   const pads = (await fetchPads()).filter(p => p.id !== id);
@@ -166,28 +135,20 @@ export async function deletePadOnServer(id: string): Promise<void> {
 
 // Para remover pads do sistema (apenas admin)
 export async function removeSystemPads(): Promise<PadItem[]> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode gerenciar pads do sistema.');
-  }
-  // Implementação simplificada para este exemplo:
-  // Em um cenário real, você iteraria sobre os pads do sistema e os removeria do Firestore.
-  return fetchPads(); 
+  const current = await fetchPads();
+  const customOnly = current.filter(p => p.isCustomUpload === true);
+  saveStoredPads(customOnly);
+  return customOnly;
 }
 
 export async function clearAllPads(): Promise<PadItem[]> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode limpar a lista.');
-  }
-  // Implementação simplificada
+  clearStoredPads();
   return [];
 }
 
-export async function resetPadsOnServer(): Promise<PadItem[]> {
-  const user = auth.currentUser;
-  if (!user || user.email !== 'vilmardigital@gmail.com') {
-    throw new Error('Apenas o administrador pode restaurar o sistema.');
-  }
-  return getDefaultPads();
+export async function resetPads(): Promise<PadItem[]> {
+  clearStoredPads();
+  const defaults = getDefaultPads();
+  saveStoredPads(defaults);
+  return defaults;
 }

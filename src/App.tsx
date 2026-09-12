@@ -26,9 +26,9 @@ import { audioEngine } from './services/audioEngine';
 import {
   fetchPads,
   fetchCloudStats,
-  updatePadOnServer,
-  deletePadOnServer,
-  resetPadsOnServer,
+  updatePad,
+  deletePad,
+  resetPads,
   removeSystemPads,
   clearAllPads
 } from './services/api';
@@ -355,7 +355,7 @@ export default function App() {
     }
 
     try {
-      await updatePadOnServer(padId, updates);
+      await updatePad(padId, updates);
     } catch (err: any) {
       console.warn('Sync notice:', err);
     }
@@ -374,7 +374,7 @@ export default function App() {
     showNotification('Pad removido da lista');
 
     try {
-      await deletePadOnServer(padId);
+      await deletePad(padId);
       const updatedStats = await fetchCloudStats();
       setStats(updatedStats);
     } catch (err: any) {
@@ -398,8 +398,8 @@ export default function App() {
     setIsResetting(true);
     audioEngine.stopAll(0);
     try {
-      const resetPads = await resetPadsOnServer();
-      setPads(resetPads);
+      const resetPadsData = await resetPads();
+      setPads(resetPadsData);
       const updatedStats = await fetchCloudStats();
       setStats(updatedStats);
       showNotification('Padrão de 22 pads restaurado com sucesso!');
