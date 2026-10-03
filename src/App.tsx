@@ -25,6 +25,7 @@ import { PadItem, CloudStorageStats } from './types';
 import { audioEngine } from './services/audioEngine';
 import {
   fetchPads,
+  subscribePads,
   fetchCloudStats,
   updatePad,
   deletePad,
@@ -188,30 +189,12 @@ export default function App() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // Clean local storage of system pads if user had them cached
-      const localPads = getStoredPads();
-      if (localPads && localPads.some(p => !p.isCustomUpload)) {
-        const customOnly = localPads.filter(p => p.isCustomUpload);
-        saveStoredPads(customOnly);
-      }
-
       const [padsData, statsData] = await Promise.all([fetchPads(), fetchCloudStats()]);
-      // Filter out system pads and guarantee immediate pure audio playback
-      const customOnly = padsData
-        .filter(p => p.isCustomUpload)
-        .map(p => ({
-          ...p,
-          fadeInTime: 0,
-          fadeOutTime: 0.05,
-        }));
-      setPads(customOnly);
-      saveStoredPads(customOnly);
+      setPads(padsData);
       setStats(statsData);
     } catch (err: any) {
       console.error('Error loading data:', err);
-      const fallback = (getStoredPads() || [])
-        .filter(p => p.isCustomUpload)
-        .map(p => ({ ...p, fadeInTime: 0, fadeOutTime: 0.05 }));
+      const fallback = getStoredPads() || [];
       setPads(fallback);
       showNotification('Pads carregados localmente.');
     } finally {
@@ -221,6 +204,13 @@ export default function App() {
 
   useEffect(() => {
     loadData();
+
+    // Real-time synchronization: when ANY user adds, edits, or deletes a pad, all users update instantly
+    const unsubscribePads = subscribePads((updatedPads) => {
+      setPads(updatedPads);
+      setLoading(false);
+      fetchCloudStats().then(setStats).catch(() => {});
+    });
 
     // Subscribe to Audio Engine state changes
     const unsubscribe = audioEngine.subscribe((padId, isPlaying) => {
@@ -248,6 +238,7 @@ export default function App() {
     });
 
     return () => {
+      unsubscribePads();
       unsubscribe();
       unsubscribeLoading();
       audioEngine.stopAll();
@@ -385,7 +376,9 @@ export default function App() {
   // Upload success
   const handleUploadSuccess = (newPads: PadItem[]) => {
     setPads(prev => {
-      const next = [...prev, ...newPads];
+      const existingIds = new Set(prev.map(p => p.id));
+      const filteredNew = newPads.filter(p => !existingIds.has(p.id));
+      const next = [...prev, ...filteredNew];
       saveStoredPads(next);
       return next;
     });

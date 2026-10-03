@@ -41,7 +41,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [masterVolume, setMasterVolume] = useState(0.85);
   const [masterFilter, setMasterFilter] = useState(20000);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
-  const [showFilterControl, setShowFilterControl] = useState(false);
   
   const handleVolumeChange = (val: number) => {
     setMasterVolume(val);
