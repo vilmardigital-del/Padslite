@@ -27,6 +27,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [filesList, setFilesList] = useState<FileWithMeta[]>([]);
   const [activeCategory, setActiveCategory] = useState<AudioCategory>(initialCategory);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,6 +114,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     if (filesList.length === 0) return;
     setIsUploading(true);
     setErrorMessage(null);
+    setUploadStatus('Iniciando envio dos áudios...');
+    setUploadPercent(5);
 
     try {
       const itemsToUpload: AudioUploadItem[] = filesList.map(item => ({
@@ -119,7 +123,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         category: item.category,
       }));
 
-      const result = await uploadAudioFiles(itemsToUpload);
+      const result = await uploadAudioFiles(itemsToUpload, (status, percent) => {
+        setUploadStatus(status);
+        setUploadPercent(percent);
+      });
       onUploadSuccess(result.addedPads);
       setFilesList([]);
       onClose();
@@ -127,6 +134,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       setErrorMessage(err.message || 'Erro ao enviar áudios para a nuvem.');
     } finally {
       setIsUploading(false);
+      setUploadStatus('');
+      setUploadPercent(0);
     }
   };
 
@@ -389,6 +398,27 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {/* Upload Progress Bar when uploading */}
+          {isUploading && (
+            <div className="bg-[#0b1f48] border border-blue-500/50 rounded-xl p-3.5 space-y-2 animate-pulse">
+              <div className="flex items-center justify-between text-xs font-semibold text-blue-200">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                  {uploadStatus || 'Sincronizando áudio permanentemente na nuvem...'}
+                </span>
+                <span className="text-sky-300 font-mono font-bold">{uploadPercent}%</span>
+              </div>
+              <div className="w-full h-2 bg-blue-950 rounded-full overflow-hidden border border-blue-800">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-sky-400 transition-all duration-300 rounded-full"
+                  style={{ width: `${Math.max(5, uploadPercent)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-blue-300/70 text-center">
+                Gravando na nuvem global. Os áudios ficarão disponíveis para todos os usuários mesmo ao fechar a página.
+              </p>
             </div>
           )}
         </div>

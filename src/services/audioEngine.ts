@@ -1,5 +1,6 @@
 import { PadItem } from '../types';
-import { getAudioBlob } from './storage';
+import { getAudioBlob, storeAudioBlob } from './storage';
+import { getAudioChunksFromFirestore } from './api';
 
 interface ActivePadState {
   source: AudioBufferSourceNode;
@@ -106,7 +107,7 @@ class AudioEngine {
   }
 
   // Load and decode pure original audio file with ZERO AI/synthetic alteration
-  public async getAudioBuffer(url: string): Promise<AudioBuffer> {
+  public async getAudioBuffer(url: string, padId?: string): Promise<AudioBuffer> {
     this.init();
     if (!this.ctx) {
       throw new Error('AudioContext não disponível');
@@ -115,43 +116,100 @@ class AudioEngine {
     if (this.bufferCache.has(url)) {
       return this.bufferCache.get(url)!;
     }
+    if (padId && this.bufferCache.has(padId)) {
+      return this.bufferCache.get(padId)!;
+    }
 
     // 1. Check if URL is stored in IndexedDB (idb://)
     if (url.startsWith('idb://')) {
       const blobId = url.replace('idb://', '');
       const data = await getAudioBlob(blobId);
-      if (!data) {
-        throw new Error('Áudio original não encontrado no armazenamento local');
+      if (data) {
+        let arrayBuffer: ArrayBuffer;
+        if (data instanceof Blob) {
+          arrayBuffer = await data.arrayBuffer();
+        } else {
+          arrayBuffer = data;
+        }
+
+        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+        this.bufferCache.set(url, audioBuffer);
+        if (padId) this.bufferCache.set(padId, audioBuffer);
+        return audioBuffer;
       }
+    }
 
-      let arrayBuffer: ArrayBuffer;
-      if (data instanceof Blob) {
-        arrayBuffer = await data.arrayBuffer();
-      } else {
-        arrayBuffer = data;
+    // 2. Check if IndexedDB has the audio blob cached for this padId
+    if (padId) {
+      try {
+        const idbData = await getAudioBlob(padId);
+        if (idbData) {
+          let arrayBuffer: ArrayBuffer;
+          if (idbData instanceof Blob) {
+            arrayBuffer = await idbData.arrayBuffer();
+          } else {
+            arrayBuffer = idbData;
+          }
+          const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+          this.bufferCache.set(url, audioBuffer);
+          this.bufferCache.set(padId, audioBuffer);
+          return audioBuffer;
+        }
+      } catch {
+        // Fall through to server fetch
       }
-
-      // decodeAudioData detaches the arrayBuffer, so we pass a slice
-      const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
-      this.bufferCache.set(url, audioBuffer);
-      return audioBuffer;
     }
 
-    // 2. Fetch from server or static URL
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      throw new Error(`Falha ao carregar áudio (${resp.status}): ${url}`);
+    // 3. Fetch from server or static URL
+    try {
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const contentType = resp.headers.get('content-type') || '';
+        if (!contentType.includes('text/html')) {
+          const arrayBuffer = await resp.arrayBuffer();
+          const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+          this.bufferCache.set(url, audioBuffer);
+          if (padId) {
+            this.bufferCache.set(padId, audioBuffer);
+            // Cache in IndexedDB for instant future playback
+            storeAudioBlob(padId, arrayBuffer.slice(0)).catch(() => {});
+          }
+          return audioBuffer;
+        }
+      }
+    } catch {
+      // Server fetch failed, try fallback
     }
 
-    const contentType = resp.headers.get('content-type') || '';
-    if (contentType.includes('text/html')) {
-      throw new Error('Arquivo de áudio não encontrado no servidor');
+    // 4. Load from Firestore permanent cloud chunks (cross-device & survives server restarts)
+    if (padId) {
+      try {
+        const firestoreArrayBuf = await getAudioChunksFromFirestore(padId);
+        if (firestoreArrayBuf && firestoreArrayBuf.byteLength > 0) {
+          const audioBuffer = await this.ctx.decodeAudioData(firestoreArrayBuf.slice(0));
+          this.bufferCache.set(url, audioBuffer);
+          this.bufferCache.set(padId, audioBuffer);
+          // Cache in IndexedDB for instant future playback
+          storeAudioBlob(padId, firestoreArrayBuf.slice(0)).catch(() => {});
+          return audioBuffer;
+        }
+      } catch (err) {
+        console.warn('Could not load audio chunks from Firestore:', err);
+      }
     }
 
-    const arrayBuffer = await resp.arrayBuffer();
-    const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
-    this.bufferCache.set(url, audioBuffer);
-    return audioBuffer;
+    // 5. Last resort: check IndexedDB one more time in case url was filename
+    if (padId) {
+      const fallbackData = await getAudioBlob(padId);
+      if (fallbackData) {
+        const arrayBuffer = fallbackData instanceof Blob ? await fallbackData.arrayBuffer() : fallbackData;
+        const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+        this.bufferCache.set(url, audioBuffer);
+        return audioBuffer;
+      }
+    }
+
+    throw new Error(`Falha ao carregar áudio: ${url}`);
   }
 
   public isPadPlaying(padId: string): boolean {
@@ -186,7 +244,7 @@ class AudioEngine {
     this.notifyLoading(pad.id, true);
 
     try {
-      const buffer = await this.getAudioBuffer(pad.url);
+      const buffer = await this.getAudioBuffer(pad.url, pad.id);
 
       // Verify user didn't hit stop while audio was loading
       if (!this.pendingLoads.has(pad.id)) {

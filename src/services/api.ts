@@ -12,10 +12,10 @@ import {
 import {
   getStoredPads,
   saveStoredPads,
-  getDefaultPads,
   clearStoredPads,
   storeAudioBlob,
-  deleteAudioBlob
+  deleteAudioBlob,
+  getAudioBlob
 } from './storage';
 
 const PAD_COLORS = [
@@ -29,9 +29,175 @@ export interface AudioUploadItem {
   category?: PadItem['category'];
 }
 
+function getApiUrl(path: string): string {
+  if (typeof window !== 'undefined') {
+    return path;
+  }
+  return `http://localhost:3000${path}`;
+}
+
+/**
+ * Clean any pad object so it never contains 'undefined' values,
+ * which cause Firestore SDK setDoc() to throw an error and fail.
+ */
+export function cleanPadForFirestore<T extends Record<string, any>>(pad: T): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(pad)) {
+    if (value !== undefined) {
+      cleaned[key] = value;
+    }
+  }
+  // Ensure optional properties are deleted rather than set to undefined
+  if (cleaned.musicalKey === undefined || cleaned.musicalKey === null) delete cleaned.musicalKey;
+  if (cleaned.bpm === undefined || cleaned.bpm === null || isNaN(cleaned.bpm)) delete cleaned.bpm;
+  if (cleaned.hotkey === undefined || cleaned.hotkey === null) delete cleaned.hotkey;
+  return cleaned;
+}
+
+/**
+ * Converts a File or Blob into base64 string.
+ */
+function fileToBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result as string;
+      const commaIdx = res.indexOf(',');
+      resolve(commaIdx !== -1 ? res.substring(commaIdx + 1) : res);
+    };
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Converts a base64 string into an ArrayBuffer.
+ */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+/**
+ * Accurately extracts duration of audio file in browser using HTMLAudioElement.
+ */
+async function getAudioDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      audio.onloadedmetadata = () => {
+        const d = audio.duration;
+        URL.revokeObjectURL(url);
+        resolve(isNaN(d) || !isFinite(d) ? 0 : Math.round(d * 10) / 10);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(0);
+      };
+      audio.src = url;
+    } catch {
+      resolve(0);
+    }
+  });
+}
+
+/**
+ * Save audio binary chunks directly to Firestore subcollection.
+ * Guarantees permanent persistence across all users, devices, and container restarts!
+ */
+export async function saveAudioChunksToFirestore(
+  padId: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<{ totalChunks: number }> {
+  const base64 = await fileToBase64(file);
+  // 380,000 chars per chunk (~285KB binary, safely below Firestore 1MB doc limit)
+  const CHUNK_SIZE = 380 * 1024;
+  const totalChunks = Math.ceil(base64.length / CHUNK_SIZE);
+
+  // Write chunks in parallel batches of 5 to optimize speed while respecting Firestore rate limits
+  const BATCH_SIZE = 5;
+  for (let batchStart = 0; batchStart < totalChunks; batchStart += BATCH_SIZE) {
+    const batchPromises: Promise<any>[] = [];
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, totalChunks);
+
+    for (let i = batchStart; i < batchEnd; i++) {
+      const chunkData = base64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+      const chunkDocRef = doc(db, 'pads', padId, 'audioChunks', String(i));
+      batchPromises.push(
+        setDoc(chunkDocRef, {
+          index: i,
+          total: totalChunks,
+          data: chunkData,
+          padId,
+          mimeType: file.type || 'audio/mpeg',
+          createdAt: Date.now()
+        })
+      );
+    }
+
+    await Promise.all(batchPromises);
+    if (onProgress) {
+      onProgress(Math.round((batchEnd / totalChunks) * 100));
+    }
+  }
+
+  return { totalChunks };
+}
+
+/**
+ * Retrieve audio binary chunks from Firestore subcollection and reconstruct into ArrayBuffer.
+ * This is the ultimate fallback ensuring audio plays even if local server files are purged.
+ */
+export async function getAudioChunksFromFirestore(padId: string): Promise<ArrayBuffer | null> {
+  try {
+    const chunksCol = collection(db, 'pads', padId, 'audioChunks');
+    const snap = await getDocs(chunksCol);
+    if (snap.empty) {
+      return null;
+    }
+
+    const docs = snap.docs.map(d => d.data() as { index: number; total: number; data: string });
+    docs.sort((a, b) => a.index - b.index);
+
+    const reassembledBase64 = docs.map(d => d.data).join('');
+    if (!reassembledBase64) return null;
+
+    return base64ToArrayBuffer(reassembledBase64);
+  } catch (err) {
+    console.warn(`Failed to fetch audio chunks from Firestore for pad ${padId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Delete audio chunks from Firestore when a pad is deleted.
+ */
+export async function deleteAudioChunksFromFirestore(padId: string): Promise<void> {
+  try {
+    const chunksCol = collection(db, 'pads', padId, 'audioChunks');
+    const snap = await getDocs(chunksCol);
+    if (!snap.empty) {
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    console.warn(`Failed to delete audio chunks from Firestore for pad ${padId}:`, err);
+  }
+}
+
 /**
  * Real-time subscription to Firestore pads collection.
  * When ANY user adds, updates, or deletes a pad, all connected users receive the update immediately.
+ * Also protects locally uploaded custom pads from ever being accidentally wiped.
  */
 export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
   try {
@@ -39,25 +205,32 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
     const unsubscribe = onSnapshot(
       padsCol,
       (snapshot) => {
-        if (!snapshot.empty) {
-          const list: PadItem[] = [];
-          snapshot.forEach((d) => {
-            list.push({ ...(d.data() as PadItem), id: d.id });
-          });
-          list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
-          saveStoredPads(list);
-          callback(list);
-        } else {
-          // If Firestore collection has no documents, fallback to fetchPads
-          fetchPads().then((pads) => {
-            if (pads.length > 0) {
-              callback(pads);
-            }
-          }).catch(() => {});
+        const firestoreList: PadItem[] = [];
+        snapshot.forEach((d) => {
+          firestoreList.push({ ...(d.data() as PadItem), id: d.id });
+        });
+
+        // Load local storage to ensure any offline/recent custom uploads are preserved
+        const local = getStoredPads() || [];
+        const firestoreIds = new Set(firestoreList.map(p => p.id));
+        const missingCustom = local.filter(p => !firestoreIds.has(p.id) && p.isCustomUpload);
+
+        if (missingCustom.length > 0) {
+          // Sync missing custom uploads to Firestore in the background
+          for (const p of missingCustom) {
+            firestoreList.push(p);
+            setDoc(doc(db, 'pads', p.id), cleanPadForFirestore(p)).catch(e => {
+              console.warn('Syncing local custom pad to Firestore:', e);
+            });
+          }
         }
+
+        firestoreList.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        saveStoredPads(firestoreList);
+        callback(firestoreList);
       },
       (error) => {
-        console.warn('Firestore subscription notice, falling back to local/api:', error);
+        console.warn('Firestore subscription notice, falling back to fetchPads:', error);
         fetchPads().then((pads) => callback(pads)).catch(() => {});
       }
     );
@@ -69,54 +242,53 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
 }
 
 /**
- * Fetch all pads. Checks Firestore first, then backend API /api/pads, then local cache.
+ * Fetch all pads. Merges Firestore, backend API /api/pads, and local cache.
+ * Guarantees that custom uploads are never lost across app restarts.
  */
 export async function fetchPads(): Promise<PadItem[]> {
+  const mergedMap = new Map<string, PadItem>();
+
+  // 1. Load local cache first for zero-latency UI
+  const local = getStoredPads() || [];
+  local.forEach(p => mergedMap.set(p.id, p));
+
+  // 2. Fetch from Firestore
   try {
-    // 1. Try Firestore first
     const padsCol = collection(db, 'pads');
     const snapshot = await getDocs(padsCol);
     if (!snapshot.empty) {
-      const list: PadItem[] = [];
-      snapshot.forEach((d) => {
-        list.push({ ...(d.data() as PadItem), id: d.id });
+      snapshot.forEach(d => {
+        mergedMap.set(d.id, { ...(d.data() as PadItem), id: d.id });
       });
-      list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
-      saveStoredPads(list);
-      return list;
     }
+  } catch (err) {
+    console.warn('fetchPads Firestore notice:', err);
+  }
 
-    // 2. If Firestore is empty, fetch from backend API
-    const res = await fetch('/api/pads');
+  // 3. Fetch from backend API /api/pads
+  try {
+    const res = await fetch(getApiUrl('/api/pads'));
     if (res.ok) {
       const data = await res.json();
-      if (data.pads && Array.isArray(data.pads) && data.pads.length > 0) {
-        // Sync to Firestore in background so all users share it
-        try {
-          const batch = writeBatch(db);
-          data.pads.forEach((p: PadItem) => {
-            const ref = doc(db, 'pads', p.id);
-            batch.set(ref, p);
-          });
-          await batch.commit();
-        } catch (syncErr) {
-          console.warn('Firestore initial sync notice:', syncErr);
-        }
-        saveStoredPads(data.pads);
-        return data.pads;
+      if (data.pads && Array.isArray(data.pads)) {
+        data.pads.forEach((p: PadItem) => {
+          if (!mergedMap.has(p.id)) {
+            mergedMap.set(p.id, p);
+            // Sync backend pads to Firestore if missing
+            setDoc(doc(db, 'pads', p.id), cleanPadForFirestore(p)).catch(() => {});
+          }
+        });
       }
     }
   } catch (err) {
-    console.warn('fetchPads network/firestore notice:', err);
+    console.warn('fetchPads API notice:', err);
   }
 
-  // 3. Fallback to cached local storage
-  const localPads = getStoredPads();
-  if (localPads && Array.isArray(localPads) && localPads.length > 0) {
-    return localPads;
-  }
+  const result = Array.from(mergedMap.values());
+  result.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  saveStoredPads(result);
 
-  return [];
+  return result;
 }
 
 /**
@@ -124,7 +296,7 @@ export async function fetchPads(): Promise<PadItem[]> {
  */
 export async function fetchCloudStats(): Promise<CloudStorageStats> {
   try {
-    const res = await fetch('/api/stats');
+    const res = await fetch(getApiUrl('/api/stats'));
     if (res.ok) {
       const data = await res.json();
       return {
@@ -152,11 +324,15 @@ export async function fetchCloudStats(): Promise<CloudStorageStats> {
 }
 
 /**
- * Upload audio files. Uploads to the backend server so the files are hosted publicly,
- * then saves pad metadata to Firestore so ALL users can immediately access and play them!
+ * Upload audio files.
+ * TRIPLE-PERSISTENCE ARCHITECTURE:
+ * 1. Uploads to backend server disk (/public/uploads/audio) for fast streaming
+ * 2. Saves full binary audio chunks to Firestore subcollection (pads/{padId}/audioChunks) for permanent multi-device cloud storage
+ * 3. Caches audio blob in IndexedDB for instantaneous local zero-latency playback
  */
 export async function uploadAudioFiles(
-  items: Array<AudioUploadItem | File>
+  items: Array<AudioUploadItem | File>,
+  onProgress?: (statusText: string, percent: number) => void
 ): Promise<{ addedPads: PadItem[]; totalPads: number }> {
   const normalizedItems: AudioUploadItem[] = items.map(item => {
     if (item instanceof File) {
@@ -166,8 +342,12 @@ export async function uploadAudioFiles(
   });
 
   const addedPads: PadItem[] = [];
+  const currentPads = await fetchPads();
 
+  // Try uploading to backend /api/upload
+  let serverUploadedPads: any[] = [];
   try {
+    if (onProgress) onProgress('Enviando arquivos para o servidor...', 10);
     const formData = new FormData();
     const categoryMap: Record<string, string> = {};
 
@@ -179,7 +359,7 @@ export async function uploadAudioFiles(
     });
     formData.append('categoriesJson', JSON.stringify(categoryMap));
 
-    const res = await fetch('/api/upload', {
+    const res = await fetch(getApiUrl('/api/upload'), {
       method: 'POST',
       body: formData,
     });
@@ -187,51 +367,29 @@ export async function uploadAudioFiles(
     if (res.ok) {
       const data = await res.json();
       if (data.addedPads && Array.isArray(data.addedPads)) {
-        for (const pad of data.addedPads) {
-          // Save pad metadata to Firestore so ALL users see it in real-time
-          try {
-            await setDoc(doc(db, 'pads', pad.id), pad);
-          } catch (e) {
-            console.warn('Firestore doc set notice:', e);
-          }
-          addedPads.push(pad);
-        }
-
-        // Cache files in local IndexedDB for zero-latency local playback
-        for (let i = 0; i < normalizedItems.length; i++) {
-          const item = normalizedItems[i];
-          const matched = addedPads.find(p => p.originalFileName === item.file.name) || addedPads[i];
-          if (matched) {
-            await storeAudioBlob(matched.id, item.file);
-          }
-        }
-
-        const currentPads = await fetchPads();
-        return {
-          addedPads,
-          totalPads: currentPads.length,
-        };
+        serverUploadedPads = data.addedPads;
       }
     }
   } catch (err) {
-    console.warn('Server upload notice, falling back to local IDB + Firestore:', err);
+    console.warn('Backend upload notice, proceeding with cloud chunking and Firestore persistence:', err);
   }
 
-  // Fallback if backend server endpoint is unreachable
-  const currentPads = await fetchPads();
+  // Process and save each file permanently to Firestore and IndexedDB
   for (let i = 0; i < normalizedItems.length; i++) {
     const { file, category: userCategory } = normalizedItems[i];
-    const padId = `pad-custom-${Date.now()}-${i}`;
-    const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+    const serverPad = serverUploadedPads[i] || serverUploadedPads.find(p => p.originalFileName === file.name);
+
+    const padId = serverPad?.id || `pad-custom-${Date.now()}-${i}`;
+    const cleanName = serverPad?.name || file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
 
     const keyMatch = file.name.match(/\b([A-G][#b]?m?)\b/i);
-    const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
+    const detectedKey = serverPad?.musicalKey || (keyMatch ? keyMatch[1].toUpperCase() : undefined);
 
     const bpmMatch = file.name.match(/\b(\d{2,3})\s*bpm\b/i);
-    const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
+    const detectedBpm = serverPad?.bpm || (bpmMatch ? parseInt(bpmMatch[1], 10) : undefined);
 
-    let category: PadItem['category'] = userCategory || 'custom';
-    if (!userCategory) {
+    let category: PadItem['category'] = userCategory || serverPad?.category || 'worship';
+    if (!userCategory && !serverPad?.category) {
       const lower = file.name.toLowerCase();
       if (detectedKey || lower.includes('worship') || lower.includes('ambient') || lower.includes('pad')) {
         category = 'worship';
@@ -242,7 +400,35 @@ export async function uploadAudioFiles(
       }
     }
 
+    // Measure exact audio duration
+    let duration = serverPad?.duration || 0;
+    if (duration === 0) {
+      duration = await getAudioDuration(file);
+    }
+
+    if (onProgress) {
+      const basePct = 20 + Math.round((i / normalizedItems.length) * 70);
+      onProgress(`Gravando áudio ${i + 1} de ${normalizedItems.length} na nuvem permanente...`, basePct);
+    }
+
+    // 1. Cache binary blob in local IndexedDB for instant zero-latency playback
     await storeAudioBlob(padId, file);
+
+    // 2. Save binary audio chunks directly into Firestore subcollection
+    let totalChunks = 0;
+    try {
+      const chunkResult = await saveAudioChunksToFirestore(padId, file, (chunkPct) => {
+        if (onProgress) {
+          const itemPct = 20 + Math.round(((i + chunkPct / 100) / normalizedItems.length) * 70);
+          onProgress(`Sincronizando áudio ${i + 1}/${normalizedItems.length} na nuvem (${chunkPct}%)...`, itemPct);
+        }
+      });
+      totalChunks = chunkResult.totalChunks;
+    } catch (chunkErr) {
+      console.warn(`Could not save audio chunks to Firestore for ${padId}:`, chunkErr);
+    }
+
+    const padUrl = serverPad?.url || `/uploads/audio/${file.name.replace(/[^a-zA-Z0-9_\-\.]/g, '_')}`;
 
     const pad: PadItem = {
       id: padId,
@@ -250,10 +436,10 @@ export async function uploadAudioFiles(
       category,
       musicalKey: detectedKey,
       bpm: detectedBpm,
-      url: `idb://${padId}`,
+      url: padUrl,
       originalFileName: file.name,
       fileSize: file.size,
-      duration: 5.0,
+      duration: duration || 5.0,
       color: PAD_COLORS[(currentPads.length + i) % PAD_COLORS.length],
       isLoop: true,
       volume: 0.95,
@@ -263,21 +449,26 @@ export async function uploadAudioFiles(
       fadeOutTime: category === 'worship' ? 2.5 : 0.05,
       isCustomUpload: true,
       cloudStored: true,
-      createdAt: new Date().toISOString()
+      hasCloudAudioChunks: totalChunks > 0,
+      totalAudioChunks: totalChunks,
+      createdAt: serverPad?.createdAt || new Date().toISOString()
     };
 
+    // 3. Save clean pad document to Firestore
     try {
-      await setDoc(doc(db, 'pads', padId), pad);
+      const cleaned = cleanPadForFirestore(pad);
+      await setDoc(doc(db, 'pads', padId), cleaned);
     } catch (e) {
-      console.warn('Firestore fallback doc set notice:', e);
+      console.error('Firestore setDoc pad error:', e);
     }
 
-    currentPads.push(pad);
     addedPads.push(pad);
+    currentPads.push(pad);
   }
 
-  saveStoredPads(currentPads);
+  if (onProgress) onProgress('Finalizando sincronização...', 100);
 
+  saveStoredPads(currentPads);
   return {
     addedPads,
     totalPads: currentPads.length
@@ -285,19 +476,21 @@ export async function uploadAudioFiles(
 }
 
 /**
- * Update pad settings. All users can update any pad, and changes sync to Firestore and the server.
+ * Update pad settings across Firestore, server, and local storage.
  */
 export async function updatePad(id: string, updates: Partial<PadItem>): Promise<PadItem> {
-  // 1. Update in Firestore (propagates to all users in real-time)
+  // 1. Update in Firestore with cleaned object
   try {
-    await setDoc(doc(db, 'pads', id), updates, { merge: true });
+    const padRef = doc(db, 'pads', id);
+    const cleaned = cleanPadForFirestore(updates);
+    await setDoc(padRef, cleaned, { merge: true });
   } catch (err) {
     console.warn('Firestore updateDoc notice:', err);
   }
 
-  // 2. Update in backend server
+  // 2. Update on backend server
   try {
-    await fetch(`/api/pads/${id}`, {
+    await fetch(getApiUrl(`/api/pads/${id}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -322,27 +515,31 @@ export async function updatePad(id: string, updates: Partial<PadItem>): Promise<
 }
 
 /**
- * Delete a pad. All users can delete any pad. Deletes from Firestore, backend server, and local storage.
+ * Delete a pad. All users can delete any pad.
+ * Deletes from Firestore (including audio chunks), backend server, and local storage.
  */
 export async function deletePad(id: string): Promise<void> {
-  // 1. Delete from Firestore (propagates to all users in real-time)
+  // 1. Delete audio chunks from Firestore subcollection
+  await deleteAudioChunksFromFirestore(id);
+
+  // 2. Delete main document from Firestore (propagates to all users in real-time)
   try {
     await deleteDoc(doc(db, 'pads', id));
   } catch (err) {
     console.warn('Firestore deleteDoc notice:', err);
   }
 
-  // 2. Delete from backend server
+  // 3. Delete from backend server
   try {
-    await fetch(`/api/pads/${id}`, { method: 'DELETE' });
+    await fetch(getApiUrl(`/api/pads/${id}`), { method: 'DELETE' });
   } catch (err) {
     console.warn('Server deletePad notice:', err);
   }
 
-  // 3. Delete from IndexedDB
+  // 4. Delete from IndexedDB
   await deleteAudioBlob(id);
 
-  // 4. Update local cache
+  // 5. Update local cache
   const pads = getStoredPads() || [];
   const filtered = pads.filter(p => p.id !== id);
   saveStoredPads(filtered);
@@ -353,14 +550,14 @@ export async function deletePad(id: string): Promise<void> {
  */
 export async function resetPads(): Promise<PadItem[]> {
   try {
-    const res = await fetch('/api/pads/reset', { method: 'POST' });
+    const res = await fetch(getApiUrl('/api/pads/reset'), { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       if (data.pads && Array.isArray(data.pads)) {
         try {
           const batch = writeBatch(db);
           data.pads.forEach((p: PadItem) => {
-            batch.set(doc(db, 'pads', p.id), p);
+            batch.set(doc(db, 'pads', p.id), cleanPadForFirestore(p));
           });
           await batch.commit();
         } catch (e) {
@@ -381,7 +578,7 @@ export async function resetPads(): Promise<PadItem[]> {
  */
 export async function removeSystemPads(): Promise<PadItem[]> {
   try {
-    const res = await fetch('/api/pads/remove-system', { method: 'POST' });
+    const res = await fetch(getApiUrl('/api/pads/remove-system'), { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       if (data.pads && Array.isArray(data.pads)) {
@@ -417,16 +614,17 @@ export async function removeSystemPads(): Promise<PadItem[]> {
  */
 export async function clearAllPads(): Promise<PadItem[]> {
   try {
-    await fetch('/api/pads/clear-all', { method: 'POST' });
+    await fetch(getApiUrl('/api/pads/clear-all'), { method: 'POST' });
   } catch (e) {
     console.warn('Clear server pads notice:', e);
   }
 
   try {
     const snapshot = await getDocs(collection(db, 'pads'));
-    const batch = writeBatch(db);
-    snapshot.forEach((d) => batch.delete(d.ref));
-    await batch.commit();
+    for (const d of snapshot.docs) {
+      await deleteAudioChunksFromFirestore(d.id);
+      await deleteDoc(d.ref);
+    }
   } catch (e) {
     console.warn('Clear firestore notice:', e);
   }

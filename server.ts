@@ -29,10 +29,11 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // Sanitize filename and preserve extension
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp3';
     const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const safeBase = base && base.length > 0 ? base : 'audio';
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e4);
-    cb(null, `${base}-${uniqueSuffix}${ext}`);
+    cb(null, `${safeBase}-${uniqueSuffix}${ext}`);
   },
 });
 
@@ -269,89 +270,96 @@ app.get('/api/stats', (req, res) => {
 });
 
 // POST /api/upload - Upload one or multiple audio files to cloud storage
-app.post('/api/upload', upload.array('audioFiles', 50), (req, res) => {
-  try {
-    const files = req.files as Express.Multer.File[];
-    if (!files || files.length === 0) {
-      return res.status(400).json({ success: false, error: 'Nenhum arquivo de áudio enviado.' });
+app.post('/api/upload', (req, res) => {
+  upload.array('audioFiles', 50)(req, res, (err: any) => {
+    if (err) {
+      console.error('Upload multer error:', err);
+      return res.status(400).json({ success: false, error: err.message || 'Erro ao processar arquivos de áudio.' });
     }
 
-    const currentPads = getPads();
-    const newPads: PadRecord[] = [];
-
-    // Parse categories chosen by user
-    let categoryMap: Record<string, string> = {};
-    if (req.body.categoriesJson) {
-      try {
-        categoryMap = JSON.parse(req.body.categoriesJson);
-      } catch (e) {
-        console.warn('Could not parse categoriesJson:', e);
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ success: false, error: 'Nenhum arquivo de áudio enviado.' });
       }
-    }
 
-    files.forEach((file, index) => {
-      const cleanName = path.parse(file.originalname).name.replace(/[_-]+/g, ' ');
-      // Detect key if in name (e.g. "Pad Em", "C#", "Sol")
-      const keyMatch = file.originalname.match(/\b([A-G][#b]?m?)\b/i);
-      const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
+      const currentPads = getPads();
+      const newPads: PadRecord[] = [];
 
-      // Detect BPM if in name (e.g. "120bpm", "96 bpm")
-      const bpmMatch = file.originalname.match(/(\d{2,3})\s*bpm/i);
-      const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
-
-      // Check user-selected category first
-      let category: PadRecord['category'] = 'worship';
-      const userChosen = categoryMap[file.originalname] || categoryMap[file.filename] || req.body.category;
-      if (userChosen && ['worship', 'ritmo', 'percussao'].includes(userChosen)) {
-        category = userChosen as any;
-      } else {
-        const lower = file.originalname.toLowerCase();
-        if (lower.includes('pad') || lower.includes('worship') || lower.includes('ambient')) {
-          category = 'worship';
-        } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
-          category = 'percussao';
-        } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
-          category = 'ritmo';
+      // Parse categories chosen by user
+      let categoryMap: Record<string, string> = {};
+      if (req.body.categoriesJson) {
+        try {
+          categoryMap = JSON.parse(req.body.categoriesJson);
+        } catch (e) {
+          console.warn('Could not parse categoriesJson:', e);
         }
       }
 
-      const pad: PadRecord = {
-        id: `pad-custom-${Date.now()}-${index}`,
-        name: cleanName,
-        category,
-        musicalKey: detectedKey,
-        bpm: detectedBpm,
-        url: `/uploads/audio/${file.filename}`,
-        originalFileName: file.originalname,
-        fileSize: file.size,
-        duration: 0, // Will be decoded in browser
-        color: PAD_COLORS[(currentPads.length + index) % PAD_COLORS.length],
-        isLoop: true,
-        volume: 0.95,
-        pan: 0,
-        filterCutoff: 20000,
-        fadeInTime: category === 'worship' ? 1.5 : 0,
-        fadeOutTime: category === 'worship' ? 2.5 : 0.05,
-        isCustomUpload: true,
-        cloudStored: true,
-        createdAt: new Date().toISOString()
-      };
+      files.forEach((file, index) => {
+        const cleanName = path.parse(file.originalname).name.replace(/[_-]+/g, ' ');
+        // Detect key if in name (e.g. "Pad Em", "C#", "Sol")
+        const keyMatch = file.originalname.match(/\b([A-G][#b]?m?)\b/i);
+        const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
 
-      currentPads.push(pad);
-      newPads.push(pad);
-    });
+        // Detect BPM if in name (e.g. "120bpm", "96 bpm")
+        const bpmMatch = file.originalname.match(/(\d{2,3})\s*bpm/i);
+        const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
 
-    savePads(currentPads);
-    res.json({
-      success: true,
-      message: `${newPads.length} áudio(s) salvo(s) na nuvem com sucesso!`,
-      addedPads: newPads,
-      totalPads: currentPads.length
-    });
-  } catch (err: any) {
-    console.error('Upload error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+        // Check user-selected category first
+        let category: PadRecord['category'] = 'worship';
+        const userChosen = categoryMap[file.originalname] || categoryMap[file.filename] || req.body.category;
+        if (userChosen && ['worship', 'ritmo', 'percussao'].includes(userChosen)) {
+          category = userChosen as any;
+        } else {
+          const lower = file.originalname.toLowerCase();
+          if (lower.includes('pad') || lower.includes('worship') || lower.includes('ambient')) {
+            category = 'worship';
+          } else if (lower.includes('samba') || lower.includes('pagode') || lower.includes('batucada') || lower.includes('percuss')) {
+            category = 'percussao';
+          } else if (lower.includes('loop') || lower.includes('beat') || lower.includes('drum')) {
+            category = 'ritmo';
+          }
+        }
+
+        const pad: PadRecord = {
+          id: `pad-custom-${Date.now()}-${index}`,
+          name: cleanName,
+          category,
+          musicalKey: detectedKey,
+          bpm: detectedBpm,
+          url: `/uploads/audio/${file.filename}`,
+          originalFileName: file.originalname,
+          fileSize: file.size,
+          duration: 0, // Will be decoded in browser
+          color: PAD_COLORS[(currentPads.length + index) % PAD_COLORS.length],
+          isLoop: true,
+          volume: 0.95,
+          pan: 0,
+          filterCutoff: 20000,
+          fadeInTime: category === 'worship' ? 1.5 : 0,
+          fadeOutTime: category === 'worship' ? 2.5 : 0.05,
+          isCustomUpload: true,
+          cloudStored: true,
+          createdAt: new Date().toISOString()
+        };
+
+        currentPads.push(pad);
+        newPads.push(pad);
+      });
+
+      savePads(currentPads);
+      res.json({
+        success: true,
+        message: `${newPads.length} áudio(s) salvo(s) na nuvem com sucesso!`,
+        addedPads: newPads,
+        totalPads: currentPads.length
+      });
+    } catch (err: any) {
+      console.error('Upload processing error:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
 });
 
 // POST /api/pads - Create manual pad (e.g., recorded microphone audio)

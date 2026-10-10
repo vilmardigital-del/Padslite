@@ -17,6 +17,8 @@ export interface PadItem {
   fadeOutTime: number; // in seconds
   isCustomUpload?: boolean;
   cloudStored: boolean;
+  hasCloudAudioChunks?: boolean;
+  totalAudioChunks?: number;
   createdAt: string;
   hotkey?: string; // keyboard shortcut
 }
