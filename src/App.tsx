@@ -382,7 +382,7 @@ export default function App() {
       saveStoredPads(next);
       return next;
     });
-    showNotification(`${newPads.length} novo(s) áudio(s) adicionado(s) com sucesso!`);
+    showNotification(`${newPads.length} novo(s) áudio(s) salvo(s) no banco de dados e sincronizado(s)!`);
     fetchCloudStats().then(setStats).catch(console.error);
   };
 

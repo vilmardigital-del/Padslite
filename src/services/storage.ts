@@ -100,7 +100,8 @@ export function getStoredPads(): PadItem[] | null {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        // Only return user custom uploaded pads, never resurrect deleted sample presets
+        return parsed.filter(p => p && p.isCustomUpload === true);
       }
     }
   } catch (e) {

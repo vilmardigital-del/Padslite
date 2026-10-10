@@ -3,6 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { generateAmbientPadWav, generateRhythmLoopWav } from './server/audioGenerator.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,6 +12,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Initialize server-side Firebase Firestore instance
+let firestoreDb: any = null;
+try {
+  const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(cfgPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+    const fApp = initializeApp(firebaseConfig, 'pads-server-app');
+    firestoreDb = getFirestore(fApp, firebaseConfig.firestoreDatabaseId);
+    console.log('[Server] Firebase Firestore connected to:', firebaseConfig.firestoreDatabaseId);
+  }
+} catch (e) {
+  console.warn('[Server] Firebase initialization notice:', e);
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -227,10 +243,75 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// GET /api/pads - Get all cloud pads
-app.get('/api/pads', (req, res) => {
+// GET /api/audio/:id - Stream audio for a pad (from local disk or reconstructed from Firestore cloud chunks)
+app.get('/api/audio/:id', async (req, res) => {
+  const { id } = req.params;
+
+  // 1. Check if a local file exists for this pad in uploadsDir
   try {
-    const pads = getPads();
+    if (fs.existsSync(uploadsDir)) {
+      const files = fs.readdirSync(uploadsDir);
+      const matched = files.find(f => f.startsWith(id) || f.includes(id));
+      if (matched) {
+        const fullPath = path.join(uploadsDir, matched);
+        return res.sendFile(fullPath);
+      }
+    }
+  } catch (err) {
+    // Proceed to Firestore chunks
+  }
+
+  // 2. Fetch from Firestore chunks if not on disk
+  if (firestoreDb) {
+    try {
+      const chunksCol = collection(firestoreDb, 'pads', id, 'audioChunks');
+      const snap = await getDocs(chunksCol);
+      if (!snap.empty) {
+        const docs = snap.docs.map(d => d.data() as { index: number; data: string; mimeType?: string });
+        docs.sort((a, b) => a.index - b.index);
+        const base64 = docs.map(d => d.data).join('');
+        const buffer = Buffer.from(base64, 'base64');
+
+        // Cache on server disk for fast subsequent streaming
+        const mime = docs[0]?.mimeType || 'audio/mpeg';
+        const ext = mime.includes('wav') ? '.wav' : (mime.includes('ogg') ? '.ogg' : '.mp3');
+        const cachePath = path.join(uploadsDir, `${id}${ext}`);
+        try { fs.writeFileSync(cachePath, buffer); } catch {}
+
+        res.setHeader('Content-Type', mime);
+        res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(buffer);
+      }
+    } catch (e) {
+      console.warn(`[Server] Could not load Firestore chunks for pad ${id}:`, e);
+    }
+  }
+
+  return res.status(404).json({ error: 'Áudio não encontrado' });
+});
+
+// GET /api/pads - Get all cloud pads
+app.get('/api/pads', async (req, res) => {
+  try {
+    let pads = getPads();
+
+    // If local file is empty but Firestore is connected, fetch from Firestore
+    if (pads.length === 0 && firestoreDb) {
+      try {
+        const snap = await getDocs(collection(firestoreDb, 'pads'));
+        if (!snap.empty) {
+          const list: any[] = [];
+          snap.forEach(d => list.push({ ...d.data(), id: d.id }));
+          pads = list;
+          savePads(pads);
+        }
+      } catch (err) {
+        // Fall through
+      }
+    }
+
     res.json({ success: true, count: pads.length, pads });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

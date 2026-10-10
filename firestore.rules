@@ -3,13 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /pads/{padId} {
       allow read, write: if true;
-    }
-    match /pads/{padId}/{document=**} {
-      allow read, write: if true;
+      
+      match /audioChunks/{chunkIndex} {
+        allow read, write: if true;
+      }
     }
     match /{document=**} {
       allow read, write: if true;
     }
   }
 }
-

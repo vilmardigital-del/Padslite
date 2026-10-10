@@ -72,15 +72,15 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-bold text-white text-sm">Servidor em Nuvem Ativo</span>
+                <span className="font-bold text-white text-sm">Banco de Dados Cloud Firestore Conectado</span>
               </div>
               <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-400/30">
-                Disponibilidade Pública 24/7
+                Sincronizado em Todos os Dispositivos
               </span>
             </div>
 
             <p className="text-blue-100/90 leading-relaxed">
-              Os áudios da lista de pads estão armazenados no servidor web da aplicação, permitindo que qualquer pessoa, músico, equipe de louvor ou transmissão ao vivo acesse e reproduza sem bloqueios.
+              Todos os áudios e configurações estão salvos permanentemente no banco de dados em nuvem (Firestore). Qualquer alteração, novo upload ou exclusão é sincronizada instantaneamente em tempo real entre todos os aparelhos (celulares, tablets e computadores).
             </p>
 
             {/* Quick Public Link */}

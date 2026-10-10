@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Pad": {
+      "title": "Pad",
+      "description": "Sound pad entity representing a playable audio trigger",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "musicalKey": { "type": "string" },
+        "bpm": { "type": "number" },
+        "url": { "type": "string" },
+        "originalFileName": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "duration": { "type": "number" },
+        "color": { "type": "string" },
+        "isLoop": { "type": "boolean" },
+        "volume": { "type": "number" },
+        "pan": { "type": "number" },
+        "filterCutoff": { "type": "number" },
+        "fadeInTime": { "type": "number" },
+        "fadeOutTime": { "type": "number" },
+        "isCustomUpload": { "type": "boolean" },
+        "cloudStored": { "type": "boolean" },
+        "hasCloudAudioChunks": { "type": "boolean" },
+        "totalAudioChunks": { "type": "number" },
+        "audioMimeType": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "hotkey": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "color", "isLoop"]
+    },
+    "AudioChunk": {
+      "title": "AudioChunk",
+      "description": "Binary audio chunk stored in base64",
+      "type": "object",
+      "properties": {
+        "index": { "type": "number" },
+        "total": { "type": "number" },
+        "data": { "type": "string" },
+        "padId": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["index", "total", "data", "padId"]
+    }
+  },
+  "firestore": {
+    "/pads/{padId}": {
+      "schema": "Pad",
+      "description": "Stores sound pad definitions and metadata"
+    },
+    "/pads/{padId}/audioChunks/{chunkIndex}": {
+      "schema": "AudioChunk",
+      "description": "Stores chunked audio data for permanent persistence across all devices"
+    }
+  }
+}
