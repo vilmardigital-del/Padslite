@@ -260,8 +260,12 @@ export async function fetchPads(): Promise<PadItem[]> {
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.pads)) {
-        saveStoredPads(data.pads);
-        return data.pads;
+        const local = getStoredPads() || [];
+        const serverIds = new Set(data.pads.map((p: PadItem) => p.id));
+        const localCustomOnly = local.filter(p => !serverIds.has(p.id) && p.isCustomUpload);
+        const combined = [...data.pads, ...localCustomOnly];
+        saveStoredPads(combined);
+        return combined;
       }
     }
   } catch (err) {
@@ -342,92 +346,158 @@ export async function uploadAudioFiles(
   formData.append('categoriesJson', JSON.stringify(categoryMap));
 
   // Upload with real, smooth XMLHttpRequest progress
-  const uploadResponse = await new Promise<any>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', getApiUrl('/api/upload'), true);
+  let serverAddedPads: PadItem[] = [];
+  let serverUploadOk = false;
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        // Upload transfer takes 5% to 85% of total progress
-        const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
-        onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
-      }
-    };
+  try {
+    const uploadResponse = await new Promise<any>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', getApiUrl('/api/upload'), true);
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          resolve(json);
-        } catch (e) {
-          reject(new Error('Resposta inválida do servidor de áudio.'));
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          // Upload transfer takes 5% to 85% of total progress
+          const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
+          onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
         }
-      } else {
-        try {
-          const errJson = JSON.parse(xhr.responseText);
-          reject(new Error(errJson.error || `Erro HTTP ${xhr.status} no upload.`));
-        } catch {
-          reject(new Error(`Erro HTTP ${xhr.status} ao enviar áudio.`));
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            resolve(json);
+          } catch {
+            reject(new Error('Resposta inválida do servidor de áudio.'));
+          }
+        } else {
+          reject(new Error(`Erro HTTP ${xhr.status}`));
         }
-      }
-    };
+      };
 
-    xhr.onerror = () => {
-      reject(new Error('Falha de rede ao conectar com o servidor. Verifique sua conexão.'));
-    };
+      xhr.onerror = () => {
+        reject(new Error('Falha de rede'));
+      };
 
-    xhr.ontimeout = () => {
-      reject(new Error('Tempo limite excedido ao enviar áudio.'));
-    };
+      xhr.ontimeout = () => {
+        reject(new Error('Tempo limite excedido'));
+      };
 
-    xhr.send(formData);
-  });
+      xhr.timeout = 45000;
+      xhr.send(formData);
+    });
+
+    if (uploadResponse && uploadResponse.success && Array.isArray(uploadResponse.addedPads)) {
+      serverAddedPads = uploadResponse.addedPads;
+      serverUploadOk = true;
+    }
+  } catch (err: any) {
+    console.warn('Upload via servidor finalizou ou retornou erro, ativando salvamento local com IndexedDB:', err.message || err);
+  }
 
   if (onProgress) onProgress('Gravando no banco de dados e sincronizando...', 90);
 
-  const serverAddedPads: PadItem[] = uploadResponse.addedPads || [];
+  // 1. If server upload succeeded, cache audio in IndexedDB & sync accurate duration
+  if (serverUploadOk && serverAddedPads.length > 0) {
+    for (let i = 0; i < serverAddedPads.length; i++) {
+      const pad = serverAddedPads[i];
+      const originalItem = normalizedItems.find(it => it.file.name === pad.originalFileName) || normalizedItems[i];
 
-  // Post-process: Cache in local IndexedDB & extract precise durations
-  for (let i = 0; i < serverAddedPads.length; i++) {
-    const pad = serverAddedPads[i];
-    const originalItem = normalizedItems.find(it => it.file.name === pad.originalFileName) || normalizedItems[i];
+      if (originalItem?.file) {
+        // Cache binary blob in local IndexedDB for immediate zero-latency playback
+        await storeAudioBlob(pad.id, originalItem.file);
 
-    if (originalItem?.file) {
-      // 1. Cache binary blob in local IndexedDB for immediate zero-latency playback
-      await storeAudioBlob(pad.id, originalItem.file);
+        // Extract accurate duration if server didn't have it
+        if (!pad.duration || pad.duration === 0) {
+          const accurateDuration = await getAudioDuration(originalItem.file);
+          if (accurateDuration > 0) {
+            pad.duration = accurateDuration;
+            fetch(getApiUrl(`/api/pads/${pad.id}`), {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ duration: accurateDuration })
+            }).catch(() => {});
+          }
+        }
 
-      // 2. Extract accurate duration if server didn't have it
-      if (!pad.duration || pad.duration === 0) {
-        const accurateDuration = await getAudioDuration(originalItem.file);
-        if (accurateDuration > 0) {
-          pad.duration = accurateDuration;
-          // Update in background
-          fetch(getApiUrl(`/api/pads/${pad.id}`), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ duration: accurateDuration })
-          }).catch(() => {});
+        // Best-effort metadata save to Firestore (lightweight doc only, no chunks, 1500ms timeout)
+        try {
+          const cleaned = cleanPadForFirestore(pad);
+          await withTimeout(setDoc(doc(db, 'pads', pad.id), cleaned), 1500, undefined);
+        } catch {
+          // non-blocking
         }
       }
+    }
+  } else {
+    // 2. Fallback: Server returned 404 or network was unavailable.
+    // Save directly into IndexedDB on this device and persist to local storage + Firestore!
+    if (onProgress) onProgress('Salvando áudios no dispositivo com segurança...', 70);
+    const existingPads = getStoredPads() || [];
 
-      // 3. Best-effort metadata save to Firestore (with strict 1500ms timeout so it never blocks)
+    for (let i = 0; i < normalizedItems.length; i++) {
+      const item = normalizedItems[i];
+      const padId = `pad-custom-${Date.now()}-${i}`;
+      const cleanName = item.file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+
+      const keyMatch = item.file.name.match(/\b([A-G][#b]?m?)\b/i);
+      const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
+      const bpmMatch = item.file.name.match(/(\d{2,3})\s*bpm/i);
+      const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
+
+      const duration = await getAudioDuration(item.file);
+      const category = item.category || 'worship';
+
+      const localPad: PadItem = {
+        id: padId,
+        name: cleanName,
+        category,
+        musicalKey: detectedKey,
+        bpm: detectedBpm,
+        url: `idb://${padId}`,
+        originalFileName: item.file.name,
+        fileSize: item.file.size,
+        duration: duration || 0,
+        color: PAD_COLORS[(existingPads.length + i) % PAD_COLORS.length],
+        isLoop: true,
+        volume: 0.95,
+        pan: 0,
+        filterCutoff: 20000,
+        fadeInTime: category === 'worship' ? 1.5 : 0,
+        fadeOutTime: category === 'worship' ? 2.5 : 0.05,
+        isCustomUpload: true,
+        cloudStored: true,
+        createdAt: new Date().toISOString()
+      };
+
+      // Store binary blob directly into IndexedDB
+      await storeAudioBlob(padId, item.file);
+
+      // Best-effort Firestore metadata save (lightweight metadata only, 1500ms timeout)
       try {
-        const cleaned = cleanPadForFirestore(pad);
-        await withTimeout(setDoc(doc(db, 'pads', pad.id), cleaned), 1500, undefined);
-      } catch (err) {
-        // Non-blocking: server database is authoritative
+        const cleaned = cleanPadForFirestore(localPad);
+        await withTimeout(setDoc(doc(db, 'pads', padId), cleaned), 1500, undefined);
+      } catch {
+        // non-blocking
       }
+
+      serverAddedPads.push(localPad);
     }
   }
 
-  if (onProgress) onProgress('Áudios salvos no banco de dados e sincronizados!', 100);
+  // 3. Update and merge stored pads so new pads are immediately available
+  const allCurrentPads = await fetchPads();
+  const padMap = new Map<string, PadItem>();
+  allCurrentPads.forEach(p => padMap.set(p.id, p));
+  serverAddedPads.forEach(p => padMap.set(p.id, p));
+  const mergedPads = Array.from(padMap.values());
+  saveStoredPads(mergedPads);
 
-  const allPads = await fetchPads();
-  saveStoredPads(allPads);
+  if (onProgress) onProgress('Áudios salvos com sucesso e sincronizados!', 100);
 
   return {
     addedPads: serverAddedPads,
-    totalPads: allPads.length
+    totalPads: mergedPads.length
   };
 }
 

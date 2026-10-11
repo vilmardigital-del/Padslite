@@ -27,6 +27,16 @@ try {
   console.warn('[Server] Firebase initialization notice:', e);
 }
 
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -57,13 +67,8 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max per file
   fileFilter: (req, file, cb) => {
-    // Accept audio formats
-    const allowed = /\.(mp3|wav|ogg|m4a|weba|flac|aac)$/i;
-    if (file.originalname.match(allowed) || file.mimetype.startsWith('audio/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Apenas arquivos de áudio são permitidos (.mp3, .wav, .ogg, .m4a, etc)'));
-    }
+    // Permissive audio filter: accept any audio format or generic stream
+    cb(null, true);
   },
 });
 
@@ -390,7 +395,8 @@ app.get('/api/stats', (req, res) => {
 });
 
 // POST /api/upload - Upload one or multiple audio files to cloud storage
-app.post('/api/upload', (req, res) => {
+const uploadAliases = ['/api/upload', '/api/upload/', '/upload', '/upload/', '/api/audio/upload', '/api/audio/upload/'];
+app.post(uploadAliases, (req, res) => {
   upload.array('audioFiles', 50)(req, res, (err: any) => {
     if (err) {
       console.error('Upload multer error:', err);

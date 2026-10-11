@@ -113,23 +113,25 @@ class AudioEngine {
       throw new Error('AudioContext não disponível');
     }
 
+    const effectivePadId = padId || (url && url.startsWith('idb://') ? url.replace('idb://', '') : undefined);
+
     // 1. Check in-memory buffer cache
     if (url && this.bufferCache.has(url)) {
       return this.bufferCache.get(url)!;
     }
-    if (padId && this.bufferCache.has(padId)) {
-      return this.bufferCache.get(padId)!;
+    if (effectivePadId && this.bufferCache.has(effectivePadId)) {
+      return this.bufferCache.get(effectivePadId)!;
     }
 
     // 2. Check local device IndexedDB cache (instant zero-latency playback)
-    if (padId) {
+    if (effectivePadId) {
       try {
-        const idbData = await getAudioBlob(padId);
+        const idbData = await getAudioBlob(effectivePadId);
         if (idbData) {
           const arrayBuffer = idbData instanceof Blob ? await idbData.arrayBuffer() : idbData;
           const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
           if (url) this.bufferCache.set(url, audioBuffer);
-          this.bufferCache.set(padId, audioBuffer);
+          this.bufferCache.set(effectivePadId, audioBuffer);
           return audioBuffer;
         }
       } catch (err) {
