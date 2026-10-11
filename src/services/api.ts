@@ -154,6 +154,30 @@ export async function saveAudioChunksToFirestore(
 }
 
 /**
+ * Safely merge pad lists, ensuring that user custom pads are never deleted by
+ * transient empty lists or out-of-sync polling responses.
+ */
+export function mergePads(basePads: PadItem[], incomingPads: PadItem[]): PadItem[] {
+  const map = new Map<string, PadItem>();
+
+  // 1. Add all incoming pads
+  incomingPads.forEach((p) => {
+    if (p && p.id) map.set(p.id, p);
+  });
+
+  // 2. Preserve any local custom pads that are not in incoming list
+  basePads.forEach((p) => {
+    if (p && p.id && !map.has(p.id) && p.isCustomUpload) {
+      map.set(p.id, p);
+    }
+  });
+
+  const merged = Array.from(map.values());
+  merged.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  return merged;
+}
+
+/**
  * Real-time synchronization across all devices and phones.
  * Uses a triple-sync architecture:
  * 1. Server-Sent Events (SSE) from the backend server (/api/events) - instant push across all devices
@@ -175,8 +199,10 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
         try {
           const data = JSON.parse(event.data);
           if (data && Array.isArray(data.pads)) {
-            saveStoredPads(data.pads);
-            callback(data.pads);
+            const current = getStoredPads() || [];
+            const merged = mergePads(current, data.pads);
+            saveStoredPads(merged);
+            callback(merged);
           }
         } catch (e) {
           console.warn('SSE parse notice:', e);
@@ -203,9 +229,10 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
           snapshot.forEach((d) => {
             firestoreList.push({ ...(d.data() as PadItem), id: d.id });
           });
-          firestoreList.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
-          saveStoredPads(firestoreList);
-          callback(firestoreList);
+          const current = getStoredPads() || [];
+          const merged = mergePads(current, firestoreList);
+          saveStoredPads(merged);
+          callback(merged);
         }
       },
       (error) => {
@@ -224,8 +251,10 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.pads)) {
-          saveStoredPads(data.pads);
-          callback(data.pads);
+          const current = getStoredPads() || [];
+          const merged = mergePads(current, data.pads);
+          saveStoredPads(merged);
+          callback(merged);
         }
       }
     } catch {
@@ -420,10 +449,10 @@ export async function uploadAudioFiles(
           }
         }
 
-        // Best-effort metadata save to Firestore (lightweight doc only, no chunks, 1500ms timeout)
+        // Best-effort metadata save to Firestore (lightweight doc only, no chunks, non-blocking)
         try {
           const cleaned = cleanPadForFirestore(pad);
-          await withTimeout(setDoc(doc(db, 'pads', pad.id), cleaned), 1500, undefined);
+          setDoc(doc(db, 'pads', pad.id), cleaned).catch(() => {});
         } catch {
           // non-blocking
         }
@@ -431,7 +460,7 @@ export async function uploadAudioFiles(
     }
   } else {
     // 2. Fallback: Server returned 404 or network was unavailable.
-    // Save directly into IndexedDB on this device and persist to local storage + Firestore!
+    // Save directly into IndexedDB on this device and persist to local storage!
     if (onProgress) onProgress('Salvando áudios no dispositivo com segurança...', 70);
     const existingPads = getStoredPads() || [];
 
@@ -473,10 +502,10 @@ export async function uploadAudioFiles(
       // Store binary blob directly into IndexedDB
       await storeAudioBlob(padId, item.file);
 
-      // Best-effort Firestore metadata save (lightweight metadata only, 1500ms timeout)
+      // Best-effort Firestore metadata save (non-blocking)
       try {
         const cleaned = cleanPadForFirestore(localPad);
-        await withTimeout(setDoc(doc(db, 'pads', padId), cleaned), 1500, undefined);
+        setDoc(doc(db, 'pads', padId), cleaned).catch(() => {});
       } catch {
         // non-blocking
       }
@@ -487,10 +516,7 @@ export async function uploadAudioFiles(
 
   // 3. Update and merge stored pads so new pads are immediately available
   const allCurrentPads = await fetchPads();
-  const padMap = new Map<string, PadItem>();
-  allCurrentPads.forEach(p => padMap.set(p.id, p));
-  serverAddedPads.forEach(p => padMap.set(p.id, p));
-  const mergedPads = Array.from(padMap.values());
+  const mergedPads = mergePads(allCurrentPads, serverAddedPads);
   saveStoredPads(mergedPads);
 
   if (onProgress) onProgress('Áudios salvos com sucesso e sincronizados!', 100);
@@ -525,12 +551,12 @@ export async function updatePad(id: string, updates: Partial<PadItem>): Promise<
     console.warn('Server updatePad notice:', err);
   }
 
-  // 2. Best-effort Firestore metadata update
+  // 2. Best-effort Firestore metadata update (non-blocking)
   try {
     const padRef = doc(db, 'pads', id);
     const cleaned = cleanPadForFirestore(updates);
-    await withTimeout(setDoc(padRef, cleaned, { merge: true }), 1500, undefined);
-  } catch (err) {
+    setDoc(padRef, cleaned, { merge: true }).catch(() => {});
+  } catch {
     // Non-blocking
   }
 
@@ -562,11 +588,11 @@ export async function deletePad(id: string): Promise<void> {
     console.warn('Server deletePad notice:', err);
   }
 
-  // 2. Best-effort Firestore delete
+  // 2. Best-effort Firestore delete (non-blocking)
   try {
-    await withTimeout(deleteDoc(doc(db, 'pads', id)), 1500, undefined);
-    await deleteAudioChunksFromFirestore(id);
-  } catch (err) {
+    deleteDoc(doc(db, 'pads', id)).catch(() => {});
+    deleteAudioChunksFromFirestore(id).catch(() => {});
+  } catch {
     // Non-blocking
   }
 
