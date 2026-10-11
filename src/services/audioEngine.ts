@@ -121,7 +121,7 @@ class AudioEngine {
       return this.bufferCache.get(padId)!;
     }
 
-    // 2. Check local device IndexedDB cache (instant playback if already played or uploaded on this device)
+    // 2. Check local device IndexedDB cache (instant zero-latency playback)
     if (padId) {
       try {
         const idbData = await getAudioBlob(padId);
@@ -137,24 +137,7 @@ class AudioEngine {
       }
     }
 
-    // 3. Load from Firestore permanent cloud chunks (Shared across ALL devices!)
-    if (padId) {
-      try {
-        const firestoreArrayBuf = await getAudioChunksFromFirestore(padId);
-        if (firestoreArrayBuf && firestoreArrayBuf.byteLength > 0) {
-          const audioBuffer = await this.ctx.decodeAudioData(firestoreArrayBuf.slice(0));
-          if (url) this.bufferCache.set(url, audioBuffer);
-          this.bufferCache.set(padId, audioBuffer);
-          // Cache in this device's IndexedDB so subsequent clicks are zero-latency!
-          storeAudioBlob(padId, firestoreArrayBuf.slice(0)).catch(() => {});
-          return audioBuffer;
-        }
-      } catch (err) {
-        console.warn('Firestore audio chunks fetch notice for pad ' + padId + ':', err);
-      }
-    }
-
-    // 4. Try network fetch from server endpoint (e.g. /api/audio/:padId or direct URL)
+    // 3. Fast network fetch from cloud server endpoint (e.g. /uploads/audio/... or direct URL)
     if (url && !url.startsWith('idb://')) {
       try {
         const resp = await fetch(url);
@@ -176,7 +159,7 @@ class AudioEngine {
       }
     }
 
-    // 5. If padId provided, also try the dedicated /api/audio/:padId endpoint
+    // 4. Try dedicated /api/audio/:padId endpoint
     if (padId) {
       try {
         const fallbackResp = await fetch(`/api/audio/${padId}`);
@@ -193,6 +176,22 @@ class AudioEngine {
         }
       } catch {
         // Fall through
+      }
+    }
+
+    // 5. Fallback: Load from Firestore cloud chunks if present
+    if (padId) {
+      try {
+        const firestoreArrayBuf = await getAudioChunksFromFirestore(padId);
+        if (firestoreArrayBuf && firestoreArrayBuf.byteLength > 0) {
+          const audioBuffer = await this.ctx.decodeAudioData(firestoreArrayBuf.slice(0));
+          if (url) this.bufferCache.set(url, audioBuffer);
+          this.bufferCache.set(padId, audioBuffer);
+          storeAudioBlob(padId, firestoreArrayBuf.slice(0)).catch(() => {});
+          return audioBuffer;
+        }
+      } catch (err) {
+        console.warn('Firestore audio chunks fetch notice for pad ' + padId + ':', err);
       }
     }
 

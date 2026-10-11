@@ -211,11 +211,26 @@ function getPads(): PadRecord[] {
   }
 }
 
+// Active SSE connections for instant real-time synchronization across all devices
+const sseClients = new Set<express.Response>();
+
+function broadcastPadsUpdate(pads: PadRecord[]) {
+  const payload = `data: ${JSON.stringify({ type: 'pads_updated', pads })}\n\n`;
+  for (const client of Array.from(sseClients)) {
+    try {
+      client.write(payload);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
 function savePads(pads: PadRecord[]): void {
   try {
     fs.writeFileSync(padsFilePath, JSON.stringify(pads, null, 2), 'utf-8');
     const publicPadsPath = path.join(process.cwd(), 'public', 'pads.json');
     fs.writeFileSync(publicPadsPath, JSON.stringify(pads, null, 2), 'utf-8');
+    broadcastPadsUpdate(pads);
   } catch (err) {
     console.error('Error saving pads file:', err);
   }
@@ -225,6 +240,36 @@ function savePads(pads: PadRecord[]): void {
 getPads();
 
 // =================== API ROUTES ===================
+
+// GET /api/events - Server-Sent Events (SSE) for instantaneous sync across all devices
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  sseClients.add(res);
+
+  // Send current pads immediately upon connection
+  const pads = getPads();
+  res.write(`data: ${JSON.stringify({ type: 'sync', pads })}\n\n`);
+
+  // Send heartbeat keep-alive every 20 seconds
+  const keepAliveTimer = setInterval(() => {
+    try {
+      res.write(': keep-alive\n\n');
+    } catch {
+      clearInterval(keepAliveTimer);
+      sseClients.delete(res);
+    }
+  }, 20000);
+
+  req.on('close', () => {
+    clearInterval(keepAliveTimer);
+    sseClients.delete(res);
+  });
+});
 
 // Serve uploaded audio files with range/streaming support
 app.use('/uploads/audio', express.static(uploadsDir, {
@@ -249,16 +294,26 @@ app.get('/api/audio/:id', async (req, res) => {
 
   // 1. Check if a local file exists for this pad in uploadsDir
   try {
+    const pads = getPads();
+    const pad = pads.find(p => p.id === id);
+    if (pad && pad.url) {
+      const fileName = path.basename(pad.url);
+      const filePath = path.join(uploadsDir, fileName);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+    }
+
     if (fs.existsSync(uploadsDir)) {
       const files = fs.readdirSync(uploadsDir);
-      const matched = files.find(f => f.startsWith(id) || f.includes(id));
+      const matched = files.find(f => f.startsWith(id) || f.includes(id) || f === id);
       if (matched) {
         const fullPath = path.join(uploadsDir, matched);
         return res.sendFile(fullPath);
       }
     }
   } catch (err) {
-    // Proceed to Firestore chunks
+    // Proceed to fallback
   }
 
   // 2. Fetch from Firestore chunks if not on disk
@@ -293,25 +348,9 @@ app.get('/api/audio/:id', async (req, res) => {
 });
 
 // GET /api/pads - Get all cloud pads
-app.get('/api/pads', async (req, res) => {
+app.get('/api/pads', (req, res) => {
   try {
-    let pads = getPads();
-
-    // If local file is empty but Firestore is connected, fetch from Firestore
-    if (pads.length === 0 && firestoreDb) {
-      try {
-        const snap = await getDocs(collection(firestoreDb, 'pads'));
-        if (!snap.empty) {
-          const list: any[] = [];
-          snap.forEach(d => list.push({ ...d.data(), id: d.id }));
-          pads = list;
-          savePads(pads);
-        }
-      } catch (err) {
-        // Fall through
-      }
-    }
-
+    const pads = getPads();
     res.json({ success: true, count: pads.length, pads });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -568,8 +607,21 @@ app.post('/api/pads/remove-system', (req, res) => {
 // POST /api/pads/clear-all - Clear all pads completely
 app.post('/api/pads/clear-all', (req, res) => {
   try {
+    try {
+      if (fs.existsSync(uploadsDir)) {
+        const files = fs.readdirSync(uploadsDir);
+        for (const file of files) {
+          try {
+            fs.unlinkSync(path.join(uploadsDir, file));
+          } catch {}
+        }
+      }
+    } catch (e) {
+      console.warn('Notice cleaning audio files:', e);
+    }
+
     savePads([]);
-    res.json({ success: true, message: 'Todos os pads foram removidos!', count: 0, pads: [] });
+    res.json({ success: true, message: 'Todos os pads foram removidos e o banco está limpo!', count: 0, pads: [] });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
