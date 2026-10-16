@@ -4,7 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { generateAmbientPadWav, generateRhythmLoopWav } from './server/audioGenerator.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +25,40 @@ try {
   }
 } catch (e) {
   console.warn('[Server] Firebase initialization notice:', e);
+}
+
+function cleanPadForFirestore(pad: any): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(pad)) {
+    if (value !== undefined) {
+      cleaned[key] = value;
+    }
+  }
+  if (cleaned.musicalKey === undefined || cleaned.musicalKey === null) delete cleaned.musicalKey;
+  if (cleaned.bpm === undefined || cleaned.bpm === null || isNaN(cleaned.bpm)) delete cleaned.bpm;
+  if (cleaned.hotkey === undefined || cleaned.hotkey === null) delete cleaned.hotkey;
+  return cleaned;
+}
+
+async function saveAudioChunksInFirestore(padId: string, buffer: Buffer): Promise<void> {
+  if (!firestoreDb) return;
+  try {
+    const base64 = buffer.toString('base64');
+    const BASE64_CHUNK_SIZE = 350 * 1024;
+    const totalChunks = Math.ceil(base64.length / BASE64_CHUNK_SIZE);
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkData = base64.slice(i * BASE64_CHUNK_SIZE, (i + 1) * BASE64_CHUNK_SIZE);
+      const chunkRef = doc(firestoreDb, 'pads', padId, 'audioChunks', String(i));
+      await setDoc(chunkRef, {
+        index: i,
+        total: totalChunks,
+        data: chunkData
+      });
+    }
+  } catch (e) {
+    console.warn(`[Server] Notice saving Firestore audio chunks for pad ${padId}:`, e);
+  }
 }
 
 app.use((req, res, next) => {
@@ -201,19 +235,64 @@ function seedDefaultPads(): PadRecord[] {
 
 function getPads(): PadRecord[] {
   if (!fs.existsSync(padsFilePath)) {
-    return [];
+    return seedDefaultPads();
   }
   try {
     const raw = fs.readFileSync(padsFilePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return seedDefaultPads();
     }
     return parsed;
   } catch (err) {
     console.error('Error reading pads.json:', err);
-    return [];
+    return seedDefaultPads();
   }
+}
+
+async function syncPadsWithFirestore(): Promise<PadRecord[]> {
+  let diskPads = getPads();
+  if (!firestoreDb) return diskPads;
+
+  try {
+    const snap = await getDocs(collection(firestoreDb, 'pads'));
+    const firestoreMap = new Map<string, PadRecord>();
+    if (!snap.empty) {
+      snap.forEach(d => {
+        firestoreMap.set(d.id, { ...(d.data() as PadRecord), id: d.id });
+      });
+    }
+
+    const mergedMap = new Map<string, PadRecord>();
+    // 1. Add disk pads
+    diskPads.forEach(p => mergedMap.set(p.id, p));
+    // 2. Add/merge Firestore pads (preserving all user custom pads from any device)
+    firestoreMap.forEach((cloudPad, id) => {
+      const diskPad = mergedMap.get(id);
+      mergedMap.set(id, { ...(diskPad || {}), ...cloudPad });
+    });
+
+    const mergedList = Array.from(mergedMap.values());
+    mergedList.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+
+    if (mergedList.length !== diskPads.length) {
+      diskPads = mergedList;
+      savePads(diskPads);
+    }
+
+    // Best-effort push missing pads into Firestore so all devices can see them
+    for (const pad of diskPads) {
+      if (!firestoreMap.has(pad.id)) {
+        try {
+          await setDoc(doc(firestoreDb, 'pads', pad.id), cleanPadForFirestore(pad));
+        } catch {}
+      }
+    }
+  } catch (e) {
+    console.warn('[Server] Notice syncing Firestore with disk pads:', e);
+  }
+
+  return diskPads;
 }
 
 // Active SSE connections for instant real-time synchronization across all devices
@@ -241,8 +320,8 @@ function savePads(pads: PadRecord[]): void {
   }
 }
 
-// Ensure initial seed
-getPads();
+// Ensure initial seed and Firestore sync
+syncPadsWithFirestore().catch(() => {});
 
 // =================== API ROUTES ===================
 
@@ -352,10 +431,10 @@ app.get('/api/audio/:id', async (req, res) => {
   return res.status(404).json({ error: 'Áudio não encontrado' });
 });
 
-// GET /api/pads - Get all cloud pads
-app.get('/api/pads', (req, res) => {
+// GET /api/pads - Get all cloud pads synchronized across all devices
+app.get(['/api/pads', '/api/pads/', '/pads', '/pads/'], async (req, res) => {
   try {
-    const pads = getPads();
+    const pads = await syncPadsWithFirestore();
     res.json({ success: true, count: pads.length, pads });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -397,7 +476,7 @@ app.get('/api/stats', (req, res) => {
 // POST /api/upload - Upload one or multiple audio files to cloud storage
 const uploadAliases = ['/api/upload', '/api/upload/', '/upload', '/upload/', '/api/audio/upload', '/api/audio/upload/'];
 app.post(uploadAliases, (req, res) => {
-  upload.array('audioFiles', 50)(req, res, (err: any) => {
+  upload.array('audioFiles', 50)(req, res, async (err: any) => {
     if (err) {
       console.error('Upload multer error:', err);
       return res.status(400).json({ success: false, error: err.message || 'Erro ao processar arquivos de áudio.' });
@@ -422,7 +501,8 @@ app.post(uploadAliases, (req, res) => {
         }
       }
 
-      files.forEach((file, index) => {
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
         const cleanName = path.parse(file.originalname).name.replace(/[_-]+/g, ' ');
         // Detect key if in name (e.g. "Pad Em", "C#", "Sol")
         const keyMatch = file.originalname.match(/\b([A-G][#b]?m?)\b/i);
@@ -448,8 +528,9 @@ app.post(uploadAliases, (req, res) => {
           }
         }
 
+        const padId = `pad-custom-${Date.now()}-${index}`;
         const pad: PadRecord = {
-          id: `pad-custom-${Date.now()}-${index}`,
+          id: padId,
           name: cleanName,
           category,
           musicalKey: detectedKey,
@@ -472,7 +553,25 @@ app.post(uploadAliases, (req, res) => {
 
         currentPads.push(pad);
         newPads.push(pad);
-      });
+
+        // Async write to Firestore so all other devices receive the pad and audio immediately
+        if (firestoreDb) {
+          try {
+            setDoc(doc(firestoreDb, 'pads', pad.id), cleanPadForFirestore(pad)).catch(e => {
+              console.warn(`[Server] Notice writing pad ${pad.id} to Firestore:`, e);
+            });
+            const diskFile = path.join(uploadsDir, file.filename);
+            if (fs.existsSync(diskFile)) {
+              const buf = fs.readFileSync(diskFile);
+              saveAudioChunksInFirestore(pad.id, buf).catch(e => {
+                console.warn(`[Server] Notice writing audio chunks for ${pad.id} to Firestore:`, e);
+              });
+            }
+          } catch (e) {
+            console.warn('[Server] Notice saving to Firestore:', e);
+          }
+        }
+      }
 
       savePads(currentPads);
       res.json({
@@ -560,6 +659,12 @@ app.put('/api/pads/:id', (req, res) => {
     currentPads[index] = updated;
     savePads(currentPads);
 
+    if (firestoreDb) {
+      try {
+        setDoc(doc(firestoreDb, 'pads', id), cleanPadForFirestore(updated), { merge: true }).catch(() => {});
+      } catch {}
+    }
+
     res.json({ success: true, pad: updated });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -591,6 +696,15 @@ app.delete('/api/pads/:id', (req, res) => {
 
     currentPads = currentPads.filter(p => p.id !== id);
     savePads(currentPads);
+
+    if (firestoreDb) {
+      try {
+        deleteDoc(doc(firestoreDb, 'pads', id)).catch(() => {});
+        getDocs(collection(firestoreDb, 'pads', id, 'audioChunks')).then(snap => {
+          snap.forEach(d => deleteDoc(d.ref).catch(() => {}));
+        }).catch(() => {});
+      } catch {}
+    }
 
     res.json({ success: true, message: 'Pad excluído com sucesso', remainingCount: currentPads.length });
   } catch (err: any) {
@@ -634,9 +748,16 @@ app.post('/api/pads/clear-all', (req, res) => {
 });
 
 // POST /api/pads/reset - Restore standard 22 cloud pads (optional factory kit)
-app.post('/api/pads/reset', (req, res) => {
+app.post('/api/pads/reset', async (req, res) => {
   try {
     const pads = seedDefaultPads();
+    if (firestoreDb) {
+      for (const pad of pads) {
+        try {
+          await setDoc(doc(firestoreDb, 'pads', pad.id), cleanPadForFirestore(pad));
+        } catch {}
+      }
+    }
     res.json({ success: true, message: 'Pads resetados para a lista padrão!', count: pads.length, pads });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
