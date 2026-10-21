@@ -11,6 +11,7 @@ interface CloudStorageInfoProps {
   onRemoveSystemPads?: () => void;
   onClearAll?: () => void;
   isResetting: boolean;
+  isAdmin?: boolean;
 }
 
 export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
@@ -22,6 +23,7 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
   onRemoveSystemPads,
   onClearAll,
   isResetting,
+  isAdmin = false,
 }) => {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [copiedAppUrl, setCopiedAppUrl] = useState(false);
@@ -150,85 +152,87 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
             </div>
           </div>
 
-          {/* Management & Reset Section */}
-          <div className="pt-3 border-t border-blue-900/60 space-y-3">
-            {/* Remove System Pads Button (if any system pads exist) */}
-            {pads.some(p => !p.isCustomUpload) && onRemoveSystemPads && (
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                <div>
-                  <h4 className="font-semibold text-rose-300 text-xs">Remover Pads do Sistema</h4>
-                  <p className="text-blue-200/60 text-[11px]">Remove todos os 22 pads pré-carregados mantendo apenas seus áudios</p>
-                </div>
-                <button
-                  onClick={() => {
-                    onRemoveSystemPads();
-                    onClose();
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-medium text-xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Remover Sistema
-                </button>
-              </div>
-            )}
-
-            {/* Clear All Pads */}
-            {pads.length > 0 && onClearAll && (
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#061129] border border-blue-500/20">
-                <div>
-                  <h4 className="font-semibold text-white text-xs">Limpar Toda a Lista de Pads</h4>
-                  <p className="text-blue-200/60 text-[11px]">Esvazia a lista para começar com o repertório totalmente limpo</p>
-                </div>
-                <button
-                  onClick={() => {
-                    onClearAll();
-                    onClose();
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-blue-500/30 hover:border-rose-500/50 hover:bg-rose-500/10 text-blue-200 hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Limpar Tudo
-                </button>
-              </div>
-            )}
-
-            {/* Optional Factory Restore */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <h4 className="font-semibold text-blue-200 text-xs">Restaurar Kit de Demonstração (22 pads)</h4>
-                <p className="text-blue-300/50 text-[11px]">Recria os pads de exemplo caso queira consultá-los</p>
-              </div>
-              {!showConfirmReset ? (
-                <button
-                  onClick={() => setShowConfirmReset(true)}
-                  className="px-2.5 py-1.5 rounded-lg border border-blue-500/30 hover:border-blue-400 text-blue-300 hover:text-white hover:bg-blue-900/40 transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Restaurar Exemplo
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowConfirmReset(false)}
-                    className="px-2.5 py-1 text-blue-300 hover:text-white text-xs cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
+          {/* Management & Reset Section - Visible only to Administrator (Password 4526) */}
+          {isAdmin && (
+            <div className="pt-3 border-t border-blue-900/60 space-y-3">
+              {/* Remove System Pads Button (if any system pads exist) */}
+              {pads.some(p => !p.isCustomUpload) && onRemoveSystemPads && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                  <div>
+                    <h4 className="font-semibold text-rose-300 text-xs">Remover Pads do Sistema</h4>
+                    <p className="text-blue-200/60 text-[11px]">Remove todos os pads de demonstração mantendo apenas seus áudios</p>
+                  </div>
                   <button
                     onClick={() => {
-                      onResetPads();
-                      setShowConfirmReset(false);
+                      onRemoveSystemPads();
+                      onClose();
                     }}
-                    disabled={isResetting}
-                    className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white font-medium text-xs flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Confirmar
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Remover Sistema
                   </button>
                 </div>
               )}
+
+              {/* Clear All Pads */}
+              {pads.length > 0 && onClearAll && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#061129] border border-blue-500/20">
+                  <div>
+                    <h4 className="font-semibold text-white text-xs">Limpar Toda a Lista de Pads</h4>
+                    <p className="text-blue-200/60 text-[11px]">Esvazia a lista para começar com o repertório totalmente limpo</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onClearAll();
+                      onClose();
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-blue-500/30 hover:border-rose-500/50 hover:bg-rose-500/10 text-blue-200 hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Limpar Tudo
+                  </button>
+                </div>
+              )}
+
+              {/* Optional Factory Restore */}
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <h4 className="font-semibold text-blue-200 text-xs">Restaurar Kit de Demonstração</h4>
+                  <p className="text-blue-300/50 text-[11px]">Recria os pads de exemplo caso queira consultá-los</p>
+                </div>
+                {!showConfirmReset ? (
+                  <button
+                    onClick={() => setShowConfirmReset(true)}
+                    className="px-2.5 py-1.5 rounded-lg border border-blue-500/30 hover:border-blue-400 text-blue-300 hover:text-white hover:bg-blue-900/40 transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Restaurar Exemplo
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowConfirmReset(false)}
+                      className="px-2.5 py-1 text-blue-300 hover:text-white text-xs cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => {
+                        onResetPads();
+                        setShowConfirmReset(false);
+                      }}
+                      disabled={isResetting}
+                      className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-1 cursor-pointer"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Confirmar
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}

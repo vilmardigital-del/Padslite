@@ -61,10 +61,20 @@ async function saveAudioChunksInFirestore(padId: string, buffer: Buffer): Promis
   }
 }
 
+// Master Admin PIN for Church Pad Management
+const ADMIN_PIN = '4526';
+
+function isAuthorizedAdmin(req: express.Request): boolean {
+  const pinHeader = (req.headers['x-admin-pin'] || req.headers['x-admin-key']) as string;
+  const pinQuery = req.query && req.query.adminPin ? String(req.query.adminPin) : '';
+  const pinBody = req.body && req.body.adminPin ? String(req.body.adminPin) : '';
+  return pinHeader === ADMIN_PIN || pinQuery === ADMIN_PIN || pinBody === ADMIN_PIN;
+}
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-pin, x-admin-key');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -235,18 +245,18 @@ function seedDefaultPads(): PadRecord[] {
 
 function getPads(): PadRecord[] {
   if (!fs.existsSync(padsFilePath)) {
-    return seedDefaultPads();
+    return [];
   }
   try {
     const raw = fs.readFileSync(padsFilePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return seedDefaultPads();
+    if (!Array.isArray(parsed)) {
+      return [];
     }
-    return parsed;
+    return parsed.filter(p => p && p.isCustomUpload === true);
   } catch (err) {
     console.error('Error reading pads.json:', err);
-    return seedDefaultPads();
+    return [];
   }
 }
 
@@ -259,13 +269,18 @@ async function syncPadsWithFirestore(): Promise<PadRecord[]> {
     const firestoreMap = new Map<string, PadRecord>();
     if (!snap.empty) {
       snap.forEach(d => {
-        firestoreMap.set(d.id, { ...(d.data() as PadRecord), id: d.id });
+        const data = d.data() as PadRecord;
+        if (data.isCustomUpload === true) {
+          firestoreMap.set(d.id, { ...data, id: d.id });
+        }
       });
     }
 
     const mergedMap = new Map<string, PadRecord>();
-    // 1. Add disk pads
-    diskPads.forEach(p => mergedMap.set(p.id, p));
+    // 1. Add disk pads (only custom uploads)
+    diskPads.forEach(p => {
+      if (p.isCustomUpload === true) mergedMap.set(p.id, p);
+    });
     // 2. Add/merge Firestore pads (preserving all user custom pads from any device)
     firestoreMap.forEach((cloudPad, id) => {
       const diskPad = mergedMap.get(id);
@@ -280,7 +295,7 @@ async function syncPadsWithFirestore(): Promise<PadRecord[]> {
       savePads(diskPads);
     }
 
-    // Best-effort push missing pads into Firestore so all devices can see them
+    // Best-effort push missing custom pads into Firestore so all devices can see them
     for (const pad of diskPads) {
       if (!firestoreMap.has(pad.id)) {
         try {
@@ -713,11 +728,25 @@ app.delete('/api/pads/:id', (req, res) => {
 });
 
 // POST /api/pads/remove-system - Remove all pre-loaded system pads, keeping only custom uploads
-app.post('/api/pads/remove-system', (req, res) => {
+app.post('/api/pads/remove-system', async (req, res) => {
   try {
     let currentPads = getPads();
     const customOnly = currentPads.filter(p => p.isCustomUpload === true);
     savePads(customOnly);
+
+    if (firestoreDb) {
+      try {
+        const snap = await getDocs(collection(firestoreDb, 'pads'));
+        for (const d of snap.docs) {
+          if (d.data().isCustomUpload !== true) {
+            deleteDoc(d.ref).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn('Notice removing system pads from Firestore:', e);
+      }
+    }
+
     res.json({ success: true, message: 'Pads do sistema removidos!', count: customOnly.length, pads: customOnly });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

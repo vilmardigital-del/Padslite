@@ -9,7 +9,13 @@ import {
   Sliders,
   Maximize,
   Minimize,
-  ListMusic
+  ListMusic,
+  Lock,
+  Unlock,
+  KeyRound,
+  Plus,
+  ShieldCheck,
+  Home
 } from 'lucide-react';
 import { audioEngine } from '../services/audioEngine';
 
@@ -24,6 +30,9 @@ interface HeaderProps {
   onToggleFullscreen: () => void;
   onOpenPlaylist?: () => void;
   playlistCount?: number;
+  isAdmin?: boolean;
+  onOpenAdminModal?: () => void;
+  onReturnToPortal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,6 +46,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleFullscreen,
   onOpenPlaylist,
   playlistCount = 0,
+  isAdmin = false,
+  onOpenAdminModal,
+  onReturnToPortal,
 }) => {
   const [masterVolume, setMasterVolume] = useState(0.85);
   const [masterFilter, setMasterFilter] = useState(20000);
@@ -183,6 +195,29 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
+          {/* Admin Status / Login Toggle */}
+          {onOpenAdminModal && (
+            <button
+              id="btn-header-admin-auth"
+              onClick={onOpenAdminModal}
+              className={`h-9 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                isAdmin
+                  ? 'bg-gradient-to-r from-blue-600 via-sky-500 to-emerald-500 text-white border-white shadow-[0_0_15px_rgba(56,189,248,0.5)] font-mono'
+                  : 'bg-[#0d224d]/90 hover:bg-[#133068] text-blue-200 border-blue-500/40 hover:text-white hover:border-blue-400'
+              }`}
+              title={isAdmin ? 'Administrador Ativo (Senha 4526)' : 'Acesso do Administrador (Senha)'}
+            >
+              {isAdmin ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-white shrink-0" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-blue-300 shrink-0" />
+              )}
+              <span className="font-mono text-[11px]">
+                {isAdmin ? 'ADMIN' : 'Admin'}
+              </span>
+            </button>
+          )}
+
           {/* Cloud Info Button */}
           <button
             id="btn-cloud-info"
@@ -192,6 +227,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Cloud className="w-4 h-4" />
           </button>
+
+          {/* Return to Portal Button (Optional) */}
+          {onReturnToPortal && (
+            <button
+              id="btn-return-portal"
+              onClick={onReturnToPortal}
+              className="h-9 w-9 rounded-xl bg-[#0d224d]/90 border border-blue-500/40 text-blue-200 flex items-center justify-center transition-all active:scale-95 hover:border-blue-400 hover:text-white shadow-sm"
+              title="Voltar ao Início / Portal"
+            >
+              <Home className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>

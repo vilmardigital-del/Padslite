@@ -19,7 +19,9 @@ import {
   UploadCloud,
   Trash2,
   VolumeX,
-  ListMusic
+  ListMusic,
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import { PadItem, CloudStorageStats } from './types';
 import { audioEngine } from './services/audioEngine';
@@ -44,6 +46,8 @@ import { CloudStorageInfo } from './components/CloudStorageInfo';
 import { NowPlayingDock } from './components/NowPlayingDock';
 import { PresentationView } from './components/PresentationView';
 import { PlaylistModal } from './components/PlaylistModal';
+import { WelcomePortal } from './components/WelcomePortal';
+import { AdminLoginModal } from './components/AdminLoginModal';
 
 export default function App() {
   const [pads, setPads] = useState<PadItem[]>([]);
@@ -81,6 +85,64 @@ export default function App() {
   const showNotification = useCallback((msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
+  }, []);
+
+  // Admin mode & Portal Flow state
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('church_pads_admin_auth') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [hasEntered, setHasEntered] = useState<boolean>(() => {
+    try {
+      if (localStorage.getItem('church_pads_admin_auth') === 'true') return true;
+      return localStorage.getItem('church_pads_entered') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  const handleEnterAsUser = useCallback(() => {
+    setHasEntered(true);
+    try {
+      localStorage.setItem('church_pads_entered', 'true');
+    } catch {}
+    showNotification('Acesso Liberado! Bem-vindo aos Pads da Igreja.');
+  }, [showNotification]);
+
+  const handleEnterAsAdmin = useCallback(() => {
+    setIsAdmin(true);
+    setHasEntered(true);
+    try {
+      localStorage.setItem('church_pads_admin_auth', 'true');
+      localStorage.setItem('church_pads_entered', 'true');
+    } catch {}
+    showNotification('Modo Administrador ativado com a senha 4526!');
+  }, [showNotification]);
+
+  const handleAdminLogin = useCallback(() => {
+    setIsAdmin(true);
+    try {
+      localStorage.setItem('church_pads_admin_auth', 'true');
+    } catch {}
+    showNotification('Acesso Administrador liberado! Botão adicionar áudio ativado.');
+  }, [showNotification]);
+
+  const handleAdminLogout = useCallback(() => {
+    setIsAdmin(false);
+    try {
+      localStorage.removeItem('church_pads_admin_auth');
+    } catch {}
+    showNotification('Modo Administrador encerrado. Visualizando como músico/usuário.');
+  }, [showNotification]);
+
+  const handleReturnToPortal = useCallback(() => {
+    setHasEntered(false);
   }, []);
 
   // Fullscreen controller supporting Native Fullscreen API + Immersive Virtual Fullscreen fallback
@@ -543,6 +605,17 @@ export default function App() {
     }
   }, [pads, handleUpdatePad]);
 
+  // PORTAL DE ACESSO INICIAL - IGREJA (Continuar para os Pads ou Senha 4526)
+  if (!hasEntered) {
+    return (
+      <WelcomePortal
+        onEnterAsUser={handleEnterAsUser}
+        onEnterAsAdmin={handleEnterAsAdmin}
+        totalPadsCount={pads.length}
+      />
+    );
+  }
+
   // FULLSCREEN PRESENTATION MODE - Sem cabeçalho, sem rodapé, apenas os áudios escalados!
   if (isPresentationMode) {
     return (
@@ -602,6 +675,9 @@ export default function App() {
         onToggleFullscreen={toggleFullscreen}
         onOpenPlaylist={() => setIsPlaylistModalOpen(true)}
         playlistCount={playlistPadIds.length}
+        isAdmin={isAdmin}
+        onOpenAdminModal={() => setIsAdminModalOpen(true)}
+        onReturnToPortal={handleReturnToPortal}
       />
 
       {/* Main Container - Mobile & Tablet Pro Dimensions */}
@@ -637,19 +713,21 @@ export default function App() {
               )}
             </div>
 
-            {/* Quick Action: Add New Pads (Futuristic Neon Button) */}
-            <button
-              id="btn-upload-pads"
-              onClick={() => setIsUploadOpen(true)}
-              className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer shrink-0"
-              title="Adicionar novos arquivos de áudio"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="hidden xs:inline">ADICIONAR</span>
-            </button>
+            {/* Quick Action: Add New Pads - ONLY VISIBLE TO ADMINISTRATOR VIA PASSWORD 4526 */}
+            {isAdmin && (
+              <button
+                id="btn-upload-pads"
+                onClick={() => setIsUploadOpen(true)}
+                className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white text-xs font-mono font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer shrink-0"
+                title="Adicionar novos arquivos de áudio (Administrador)"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span className="hidden xs:inline">ADICIONAR</span>
+              </button>
+            )}
 
-            {/* If any system pad exists, show 1-click removal */}
-            {pads.some(p => !p.isCustomUpload) && (
+            {/* If any system pad exists, show 1-click removal for admin */}
+            {pads.some(p => !p.isCustomUpload) && isAdmin && (
               <button
                 id="btn-remove-system-pads"
                 onClick={handleRemoveSystemPads}
@@ -802,20 +880,41 @@ export default function App() {
             <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/50 flex items-center justify-center text-blue-400 mx-auto shadow-[0_0_20px_rgba(59,130,246,0.3)]">
               <UploadCloud className="w-7 h-7" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-white font-mono">SEU KIT DE ÁUDIO</h3>
-              <p className="text-xs text-blue-200/70 leading-relaxed font-sans">
-                Adicione seus arquivos de áudio (MP3, WAV, M4A, OGG) para montar seu kit personalizado de pads para worship, ritmo ou percussão.
-              </p>
-            </div>
-            <button
-              id="btn-add-first-pads"
-              onClick={() => setIsUploadOpen(true)}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white font-mono font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>ADICIONAR MEUS ÁUDIOS</span>
-            </button>
+            {isAdmin ? (
+              <>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-white font-mono">SEU KIT DE ÁUDIO (ADMIN)</h3>
+                  <p className="text-xs text-blue-200/70 leading-relaxed font-sans">
+                    Você está no modo Administrador. Adicione seus arquivos de áudio (MP3, WAV, M4A, OGG) para montar seu kit personalizado de pads para worship, ritmo ou percussão.
+                  </p>
+                </div>
+                <button
+                  id="btn-add-first-pads"
+                  onClick={() => setIsUploadOpen(true)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 hover:from-blue-500 hover:to-sky-300 text-white font-mono font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white active:scale-95 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>ADICIONAR MEUS ÁUDIOS</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-white font-mono">REPOSITÓRIO DE LOUVOR</h3>
+                  <p className="text-xs text-blue-200/70 leading-relaxed font-sans">
+                    Nenhum áudio de pad foi adicionado ainda. Somente o administrador da igreja pode adicionar novos áudios através da senha de acesso.
+                  </p>
+                </div>
+                <button
+                  id="btn-login-admin-empty-state"
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="w-full py-3 rounded-xl bg-[#0d224d] hover:bg-[#133068] text-blue-200 hover:text-white font-mono text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-blue-500/40 transition-all cursor-pointer active:scale-95 shadow-sm"
+                >
+                  <Lock className="w-4 h-4 text-blue-400" />
+                  <span>Acesso do Administrador (Senha 4526)</span>
+                </button>
+              </>
+            )}
           </div>
         ) : filteredPads.length === 0 ? (
           <div className="py-16 text-center space-y-3 bg-[#081533]/80 rounded-2xl border border-blue-500/30 backdrop-blur-xl">
@@ -851,6 +950,7 @@ export default function App() {
                 onDeletePad={handleDeletePad}
                 onEditPad={(p) => setEditingPad(p)}
                 onTogglePlaylist={handleTogglePadInPlaylist}
+                isAdmin={isAdmin}
               />
             ))}
           </div>
@@ -899,6 +999,15 @@ export default function App() {
         onRemoveSystemPads={handleRemoveSystemPads}
         onClearAll={handleClearAllPads}
         isResetting={isResetting}
+        isAdmin={isAdmin}
+      />
+
+      <AdminLoginModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        isAdmin={isAdmin}
+        onLogin={handleAdminLogin}
+        onLogout={handleAdminLogout}
       />
     </div>
   );

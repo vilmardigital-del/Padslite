@@ -237,8 +237,9 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
         try {
           const data = JSON.parse(event.data);
           if (data && Array.isArray(data.pads)) {
-            const current = getStoredPads() || [];
-            const merged = mergePads(current, data.pads);
+            const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
+            const customOnly = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
+            const merged = mergePads(current, customOnly);
             saveStoredPads(merged);
             callback(merged);
           }
@@ -265,9 +266,12 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
         if (!snapshot.empty) {
           const firestoreList: PadItem[] = [];
           snapshot.forEach((d) => {
-            firestoreList.push({ ...(d.data() as PadItem), id: d.id });
+            const item = { ...(d.data() as PadItem), id: d.id };
+            if (item.isCustomUpload === true) {
+              firestoreList.push(item);
+            }
           });
-          const current = getStoredPads() || [];
+          const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
           const merged = mergePads(current, firestoreList);
           saveStoredPads(merged);
           callback(merged);
@@ -289,8 +293,9 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.pads)) {
-          const current = getStoredPads() || [];
-          const merged = mergePads(current, data.pads);
+          const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
+          const customOnly = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
+          const merged = mergePads(current, customOnly);
           saveStoredPads(merged);
           callback(merged);
         }
@@ -320,7 +325,7 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
 
 /**
  * Fetch all pads from backend server AND cloud Firestore database.
- * Merges both sources so all devices receive all pads.
+ * Merges both sources so all devices receive all user pads.
  */
 export async function fetchPads(): Promise<PadItem[]> {
   let serverPads: PadItem[] = [];
@@ -329,7 +334,7 @@ export async function fetchPads(): Promise<PadItem[]> {
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.pads)) {
-        serverPads = data.pads;
+        serverPads = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
       }
     }
   } catch (err) {
@@ -342,23 +347,22 @@ export async function fetchPads(): Promise<PadItem[]> {
     const snap = await getDocs(collection(db, 'pads'));
     if (!snap.empty) {
       snap.forEach(d => {
-        firestorePads.push({ ...(d.data() as PadItem), id: d.id });
+        const item = { ...(d.data() as PadItem), id: d.id };
+        if (item.isCustomUpload === true) {
+          firestorePads.push(item);
+        }
       });
     }
   } catch (err) {
     console.warn('Firestore fetchPads notice:', err);
   }
 
-  const local = getStoredPads() || [];
+  const local = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
   const mergedWithFirestore = mergePads(serverPads, firestorePads);
   const finalMerged = mergePads(local, mergedWithFirestore);
 
-  if (finalMerged.length > 0) {
-    saveStoredPads(finalMerged);
-    return finalMerged;
-  }
-
-  return local;
+  saveStoredPads(finalMerged);
+  return finalMerged;
 }
 
 /**
@@ -712,6 +716,16 @@ export async function removeSystemPads(): Promise<PadItem[]> {
   } catch (e) {
     console.warn('Remove system notice:', e);
   }
+
+  // Also clean any system pads from Firestore
+  try {
+    const snap = await getDocs(collection(db, 'pads'));
+    for (const d of snap.docs) {
+      if (d.data().isCustomUpload !== true) {
+        deleteDoc(d.ref).catch(() => {});
+      }
+    }
+  } catch {}
 
   const current = await fetchPads();
   const customOnly = current.filter(p => p.isCustomUpload);

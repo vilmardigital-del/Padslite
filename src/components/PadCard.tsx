@@ -28,6 +28,7 @@ interface PadCardProps {
   onDeletePad: (padId: string) => void;
   onEditPad: (pad: PadItem) => void;
   onTogglePlaylist?: (padId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const PadCard: React.FC<PadCardProps> = ({
@@ -40,6 +41,7 @@ export const PadCard: React.FC<PadCardProps> = ({
   onDeletePad,
   onEditPad,
   onTogglePlaylist,
+  isAdmin = false,
 }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [showMixer, setShowMixer] = useState(false);
@@ -161,29 +163,33 @@ export const PadCard: React.FC<PadCardProps> = ({
                   <Download className="w-3.5 h-3.5 text-blue-300" />
                   Baixar Arquivo
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowOptions(false);
-                    onEditPad(pad);
-                  }}
-                  className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Edit2 className="w-3.5 h-3.5 text-blue-300" />
-                  Editar Nome/Tom
-                </button>
-                <div className="h-px bg-blue-900/60 my-1" />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowOptions(false);
-                    onDeletePad(pad.id);
-                  }}
-                  className="w-full text-left px-3 py-2 text-rose-400 hover:bg-rose-500/15 flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Remover
-                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowOptions(false);
+                        onEditPad(pad);
+                      }}
+                      className="w-full text-left px-3 py-2 text-white hover:bg-blue-900/50 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-blue-300" />
+                      Editar Nome/Tom
+                    </button>
+                    <div className="h-px bg-blue-900/60 my-1" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowOptions(false);
+                        onDeletePad(pad.id);
+                      }}
+                      className="w-full text-left px-3 py-2 text-rose-400 hover:bg-rose-500/15 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remover
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
