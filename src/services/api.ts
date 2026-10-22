@@ -90,104 +90,30 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallbackValue: T): Prom
 }
 
 /**
- * Retrieve audio binary chunks from Firestore subcollection (fallback).
+ * Audio binary chunks helper (no-op since audio is stored on server filesystem and cached in IndexedDB).
  */
-export async function getAudioChunksFromFirestore(padId: string): Promise<ArrayBuffer | null> {
-  try {
-    const fetchPromise = async () => {
-      const chunksCol = collection(db, 'pads', padId, 'audioChunks');
-      const snap = await getDocs(chunksCol);
-      if (snap.empty) return null;
-
-      const docs = snap.docs.map(d => d.data() as { index: number; total: number; data: string });
-      docs.sort((a, b) => a.index - b.index);
-
-      const reassembledBase64 = docs.map(d => d.data).join('');
-      if (!reassembledBase64) return null;
-
-      const binaryString = window.atob(reassembledBase64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      return bytes.buffer;
-    };
-
-    return await withTimeout(fetchPromise(), 2500, null);
-  } catch (err) {
-    console.warn(`Notice loading Firestore chunks for pad ${padId}:`, err);
-    return null;
-  }
+export async function getAudioChunksFromFirestore(_padId: string): Promise<ArrayBuffer | null> {
+  return null;
 }
 
 /**
- * Delete audio chunks from Firestore when a pad is deleted (safe best-effort).
+ * Delete audio chunks helper (no-op).
  */
-export async function deleteAudioChunksFromFirestore(padId: string): Promise<void> {
-  try {
-    const delPromise = async () => {
-      const chunksCol = collection(db, 'pads', padId, 'audioChunks');
-      const snap = await getDocs(chunksCol);
-      if (!snap.empty) {
-        const batch = writeBatch(db);
-        snap.docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
-    };
-    await withTimeout(delPromise(), 3000, undefined);
-  } catch (err) {
-    console.warn(`Notice deleting Firestore chunks for pad ${padId}:`, err);
-  }
+export async function deleteAudioChunksFromFirestore(_padId: string): Promise<void> {
+  return Promise.resolve();
 }
 
 /**
- * Store audio file chunks into Firestore subcollection so that ANY device can play it.
+ * Audio chunk saver (no-op to prevent Firestore quota limit exhaustion).
+ * Audio files are stored on server disk and cached in local browser IndexedDB.
  */
 export async function saveAudioChunksToFirestore(
-  padId: string,
-  fileOrBuffer: File | Blob | ArrayBuffer,
+  _padId: string,
+  _fileOrBuffer: File | Blob | ArrayBuffer,
   onProgress?: (percent: number) => void
 ): Promise<{ totalChunks: number; totalBytes: number }> {
-  try {
-    let arrayBuffer: ArrayBuffer;
-    if (fileOrBuffer instanceof ArrayBuffer) {
-      arrayBuffer = fileOrBuffer;
-    } else {
-      arrayBuffer = await fileOrBuffer.arrayBuffer();
-    }
-
-    const totalBytes = arrayBuffer.byteLength;
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const CHUNK_SIZE = 8192;
-    for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-      const slice = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
-      binary += String.fromCharCode.apply(null, slice as any);
-    }
-    const base64 = window.btoa(binary);
-
-    const BASE64_CHUNK_SIZE = 350 * 1024;
-    const totalChunks = Math.ceil(base64.length / BASE64_CHUNK_SIZE);
-
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkData = base64.slice(i * BASE64_CHUNK_SIZE, (i + 1) * BASE64_CHUNK_SIZE);
-      const chunkRef = doc(db, 'pads', padId, 'audioChunks', String(i));
-      await setDoc(chunkRef, {
-        index: i,
-        total: totalChunks,
-        data: chunkData
-      });
-      if (onProgress) {
-        onProgress(Math.round(((i + 1) / totalChunks) * 100));
-      }
-    }
-
-    return { totalChunks, totalBytes };
-  } catch (err) {
-    console.warn('saveAudioChunksToFirestore notice:', err);
-    return { totalChunks: 0, totalBytes: 0 };
-  }
+  if (onProgress) onProgress(100);
+  return { totalChunks: 0, totalBytes: 0 };
 }
 
 /**
@@ -515,15 +441,11 @@ export async function uploadAudioFiles(
         } catch {
           // non-blocking
         }
-
-        // Save chunks to Firestore in background so all other devices can play this audio
-        saveAudioChunksToFirestore(pad.id, originalItem.file).catch(() => {});
       }
     }
   } else {
-    // 2. Fallback: Server returned 404 or network was unavailable.
-    // Save directly into IndexedDB on this device AND save chunks into Firestore!
-    if (onProgress) onProgress('Salvando áudios na nuvem e no dispositivo com segurança...', 70);
+    // 2. Fallback: Server was unavailable. Save locally into IndexedDB on this device!
+    if (onProgress) onProgress('Salvando áudios no dispositivo com segurança...', 70);
     const existingPads = getStoredPads() || [];
 
     for (let i = 0; i < normalizedItems.length; i++) {
@@ -558,27 +480,13 @@ export async function uploadAudioFiles(
         fadeOutTime: category === 'worship' ? 2.5 : 0.05,
         isCustomUpload: true,
         cloudStored: true,
-        hasCloudAudioChunks: true,
-        totalAudioChunks: 1,
         createdAt: new Date().toISOString()
       };
 
       // Store binary blob directly into IndexedDB for 0ms local playback
       await storeAudioBlob(padId, item.file);
 
-      // Save chunks into Firestore so ANY device can play this audio
-      try {
-        const chunkRes = await saveAudioChunksToFirestore(padId, item.file, (pct) => {
-          if (onProgress) {
-            onProgress(`Salvando áudio na nuvem (${70 + Math.round(pct * 0.25)}%)...`, 70 + Math.round(pct * 0.25));
-          }
-        });
-        localPad.totalAudioChunks = chunkRes.totalChunks;
-      } catch (err) {
-        console.warn('Notice saving Firestore audio chunks:', err);
-      }
-
-      // Save pad metadata to Firestore
+      // Best effort save pad metadata to Firestore
       try {
         const cleaned = cleanPadForFirestore(localPad);
         await setDoc(doc(db, 'pads', padId), cleaned);

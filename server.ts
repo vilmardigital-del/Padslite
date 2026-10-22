@@ -40,26 +40,6 @@ function cleanPadForFirestore(pad: any): Record<string, any> {
   return cleaned;
 }
 
-async function saveAudioChunksInFirestore(padId: string, buffer: Buffer): Promise<void> {
-  if (!firestoreDb) return;
-  try {
-    const base64 = buffer.toString('base64');
-    const BASE64_CHUNK_SIZE = 350 * 1024;
-    const totalChunks = Math.ceil(base64.length / BASE64_CHUNK_SIZE);
-    
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkData = base64.slice(i * BASE64_CHUNK_SIZE, (i + 1) * BASE64_CHUNK_SIZE);
-      const chunkRef = doc(firestoreDb, 'pads', padId, 'audioChunks', String(i));
-      await setDoc(chunkRef, {
-        index: i,
-        total: totalChunks,
-        data: chunkData
-      });
-    }
-  } catch (e) {
-    console.warn(`[Server] Notice saving Firestore audio chunks for pad ${padId}:`, e);
-  }
-}
 
 // Master Admin PIN for Church Pad Management
 const ADMIN_PIN = '4526';
@@ -371,7 +351,7 @@ app.get('/api/events', (req, res) => {
 });
 
 // Serve uploaded audio files with range/streaming support
-app.use('/uploads/audio', express.static(uploadsDir, {
+app.use(['/uploads/audio', '/uploads', '/public/uploads/audio'], express.static(uploadsDir, {
   setHeaders: (res, filePath) => {
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, max-age=86400');
@@ -382,16 +362,21 @@ app.use('/uploads/audio', express.static(uploadsDir, {
   }
 }));
 
+// If an audio file under /uploads is not found, return 404 immediately
+// so it NEVER falls through to Vite SPA middleware which serves index.html!
+app.use(['/uploads', '/uploads/*'], (req, res) => {
+  res.status(404).json({ error: 'Arquivo de áudio não encontrado no servidor' });
+});
+
 // GET /api/health - Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// GET /api/audio/:id - Stream audio for a pad (from local disk or reconstructed from Firestore cloud chunks)
-app.get('/api/audio/:id', async (req, res) => {
+// GET /api/audio/:id - Stream audio for a pad directly from local storage
+app.get('/api/audio/:id', (req, res) => {
   const { id } = req.params;
 
-  // 1. Check if a local file exists for this pad in uploadsDir
   try {
     const pads = getPads();
     const pad = pads.find(p => p.id === id);
@@ -412,38 +397,10 @@ app.get('/api/audio/:id', async (req, res) => {
       }
     }
   } catch (err) {
-    // Proceed to fallback
+    // Proceed to 404
   }
 
-  // 2. Fetch from Firestore chunks if not on disk
-  if (firestoreDb) {
-    try {
-      const chunksCol = collection(firestoreDb, 'pads', id, 'audioChunks');
-      const snap = await getDocs(chunksCol);
-      if (!snap.empty) {
-        const docs = snap.docs.map(d => d.data() as { index: number; data: string; mimeType?: string });
-        docs.sort((a, b) => a.index - b.index);
-        const base64 = docs.map(d => d.data).join('');
-        const buffer = Buffer.from(base64, 'base64');
-
-        // Cache on server disk for fast subsequent streaming
-        const mime = docs[0]?.mimeType || 'audio/mpeg';
-        const ext = mime.includes('wav') ? '.wav' : (mime.includes('ogg') ? '.ogg' : '.mp3');
-        const cachePath = path.join(uploadsDir, `${id}${ext}`);
-        try { fs.writeFileSync(cachePath, buffer); } catch {}
-
-        res.setHeader('Content-Type', mime);
-        res.setHeader('Content-Length', buffer.length);
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        return res.send(buffer);
-      }
-    } catch (e) {
-      console.warn(`[Server] Could not load Firestore chunks for pad ${id}:`, e);
-    }
-  }
-
-  return res.status(404).json({ error: 'Áudio não encontrado' });
+  return res.status(404).json({ error: 'Áudio não encontrado no servidor' });
 });
 
 // GET /api/pads - Get all cloud pads synchronized across all devices
@@ -569,19 +526,12 @@ app.post(uploadAliases, (req, res) => {
         currentPads.push(pad);
         newPads.push(pad);
 
-        // Async write to Firestore so all other devices receive the pad and audio immediately
+        // Async write pad metadata to Firestore (quota-safe, non-blocking)
         if (firestoreDb) {
           try {
             setDoc(doc(firestoreDb, 'pads', pad.id), cleanPadForFirestore(pad)).catch(e => {
-              console.warn(`[Server] Notice writing pad ${pad.id} to Firestore:`, e);
+              console.warn(`[Server] Firestore write notice for ${pad.id}:`, e.message || e);
             });
-            const diskFile = path.join(uploadsDir, file.filename);
-            if (fs.existsSync(diskFile)) {
-              const buf = fs.readFileSync(diskFile);
-              saveAudioChunksInFirestore(pad.id, buf).catch(e => {
-                console.warn(`[Server] Notice writing audio chunks for ${pad.id} to Firestore:`, e);
-              });
-            }
           } catch (e) {
             console.warn('[Server] Notice saving to Firestore:', e);
           }

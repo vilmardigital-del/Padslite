@@ -197,7 +197,7 @@ class AudioEngine {
       }
     }
 
-    throw new Error('Falha ao carregar áudio. Verifique a conexão com a nuvem.');
+    throw new Error('Áudio não encontrado no servidor. Por favor, reenvie o arquivo de áudio.');
   }
 
   public isPadPlaying(padId: string): boolean {
