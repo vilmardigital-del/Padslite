@@ -1,8 +1,15 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, setLogLevel } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import firebaseConfig from "../../firebase-applet-config.json";
 
+try {
+  setLogLevel('error');
+} catch {}
+
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+}, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+

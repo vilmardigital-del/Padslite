@@ -341,93 +341,124 @@ export async function uploadAudioFiles(
     }
   });
   formData.append('categoriesJson', JSON.stringify(categoryMap));
+  formData.append('adminPin', ADMIN_PIN);
 
-  // Upload with real, smooth XMLHttpRequest progress
-  let serverAddedPads: PadItem[] = [];
+  const uploadUrl = getApiUrl('/api/upload?adminPin=' + encodeURIComponent(ADMIN_PIN));
+  let uploadResponse: any = null;
 
-  const uploadResponse = await new Promise<any>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', getApiUrl('/api/upload'), true);
-    xhr.setRequestHeader('x-admin-pin', ADMIN_PIN);
+  // 1. Primary upload attempt via XMLHttpRequest for smooth 0% -> 90% progress
+  try {
+    uploadResponse = await new Promise<any>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl, true);
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        // Upload transfer takes 5% to 85% of total progress
-        const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
-        onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
-      }
-    };
+      try {
+        xhr.setRequestHeader('x-admin-pin', ADMIN_PIN);
+      } catch {}
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          resolve(json);
-        } catch {
-          reject(new Error('Resposta inválida do servidor de áudio.'));
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
+          onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
         }
-      } else if (xhr.status === 403) {
-        reject(new Error('Acesso restrito: Somente o Administrador com senha 4526 pode adicionar áudio.'));
-      } else {
-        try {
-          const json = JSON.parse(xhr.responseText);
-          reject(new Error(json.error || `Erro HTTP ${xhr.status}`));
-        } catch {
-          reject(new Error(`Erro ao enviar arquivos (${xhr.status}). Verifique a conexão.`));
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error('Resposta inválida do servidor de áudio.'));
+          }
+        } else if (xhr.status === 403) {
+          reject(new Error('Acesso restrito: Senha de administrador incorreta ou necessária.'));
+        } else {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            reject(new Error(json.error || `Erro HTTP ${xhr.status}`));
+          } catch {
+            reject(new Error(`Erro HTTP ${xhr.status}`));
+          }
         }
-      }
-    };
+      };
 
-    xhr.onerror = () => {
-      reject(new Error('Falha de rede ao conectar com o servidor.'));
-    };
-
-    xhr.ontimeout = () => {
-      reject(new Error('Tempo limite excedido no upload do áudio.'));
-    };
-
-    xhr.timeout = 60000;
-    formData.append('adminPin', ADMIN_PIN);
-    xhr.send(formData);
-  });
-
-  if (uploadResponse && uploadResponse.success && Array.isArray(uploadResponse.addedPads)) {
-    serverAddedPads = uploadResponse.addedPads;
-  } else {
-    throw new Error('Falha ao processar áudios no servidor.');
+      xhr.onerror = () => reject(new Error('xhr_network_error'));
+      xhr.ontimeout = () => reject(new Error('xhr_timeout'));
+      xhr.timeout = 180000; // 3 minutes timeout for audio files
+      xhr.send(formData);
+    });
+  } catch (xhrErr: any) {
+    if (xhrErr?.message?.includes('Acesso restrito')) {
+      throw xhrErr;
+    }
+    console.warn('XHR upload notice, executing robust fetch fallback:', xhrErr);
   }
+
+  // 2. Resilient Fallback via native fetch() if XHR suffered network/CORS error
+  if (!uploadResponse || !uploadResponse.success) {
+    if (onProgress) onProgress('Transmitindo áudios diretamente para o servidor...', 70);
+    try {
+      const fetchResp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'x-admin-pin': ADMIN_PIN,
+        },
+        body: formData,
+      });
+
+      if (fetchResp.ok) {
+        uploadResponse = await fetchResp.json();
+      } else {
+        if (fetchResp.status === 403) {
+          throw new Error('Acesso restrito: Senha de administrador incorreta.');
+        }
+        const errText = await fetchResp.text().catch(() => '');
+        throw new Error(`Erro no servidor (${fetchResp.status}): ${errText || 'Falha ao salvar áudio'}`);
+      }
+    } catch (fetchErr: any) {
+      console.error('Fetch upload error:', fetchErr);
+      throw new Error('Falha ao conectar com o servidor. Verifique sua conexão com a internet e tente novamente.');
+    }
+  }
+
+  if (!uploadResponse || !uploadResponse.success || !Array.isArray(uploadResponse.addedPads)) {
+    throw new Error('Falha ao processar os arquivos de áudio no servidor.');
+  }
+
+  const serverAddedPads: PadItem[] = uploadResponse.addedPads;
 
   if (onProgress) onProgress('Gravando no banco de dados e sincronizando...', 90);
 
-  // Cache audio in IndexedDB & sync duration / Firestore metadata
+  // Cache audio in local IndexedDB for instant playback & sync metadata
   for (let i = 0; i < serverAddedPads.length; i++) {
     const pad = serverAddedPads[i];
     const originalItem = normalizedItems.find(it => it.file.name === pad.originalFileName) || normalizedItems[i];
 
     if (originalItem?.file) {
       // Cache binary blob in local IndexedDB for immediate zero-latency playback
-      await storeAudioBlob(pad.id, originalItem.file);
+      await storeAudioBlob(pad.id, originalItem.file).catch(() => {});
 
       // Extract accurate duration if server didn't have it
       if (!pad.duration || pad.duration === 0) {
-        const accurateDuration = await getAudioDuration(originalItem.file);
-        if (accurateDuration > 0) {
-          pad.duration = accurateDuration;
-          fetch(getApiUrl(`/api/pads/${pad.id}`), {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-pin': ADMIN_PIN,
-            },
-            body: JSON.stringify({ duration: accurateDuration, adminPin: ADMIN_PIN })
-          }).catch(() => {});
-        }
+        getAudioDuration(originalItem.file).then((accurateDuration) => {
+          if (accurateDuration > 0) {
+            pad.duration = accurateDuration;
+            fetch(getApiUrl(`/api/pads/${pad.id}?adminPin=${encodeURIComponent(ADMIN_PIN)}`), {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-admin-pin': ADMIN_PIN,
+              },
+              body: JSON.stringify({ duration: accurateDuration, adminPin: ADMIN_PIN })
+            }).catch(() => {});
+          }
+        }).catch(() => {});
       }
 
-      // Save metadata doc to Firestore
+      // Best effort sync metadata doc to Firestore
       try {
         const cleaned = cleanPadForFirestore(pad);
-        await setDoc(doc(db, 'pads', pad.id), cleaned);
+        setDoc(doc(db, 'pads', pad.id), cleaned).catch(() => {});
       } catch {
         // non-blocking
       }

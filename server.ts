@@ -4,7 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { initializeFirestore, setLogLevel, collection, getDocs, doc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { generateAmbientPadWav, generateRhythmLoopWav } from './server/audioGenerator.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,14 +13,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-// Initialize server-side Firebase Firestore instance
+try {
+  setLogLevel('error');
+} catch {}
+
+// Initialize server-side Firebase Firestore instance with long polling to prevent gRPC ECONNRESET
 let firestoreDb: any = null;
 try {
   const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
   if (fs.existsSync(cfgPath)) {
     const firebaseConfig = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
     const fApp = initializeApp(firebaseConfig, 'pads-server-app');
-    firestoreDb = getFirestore(fApp, firebaseConfig.firestoreDatabaseId);
+    firestoreDb = initializeFirestore(fApp, {
+      experimentalAutoDetectLongPolling: true,
+    }, firebaseConfig.firestoreDatabaseId);
     console.log('[Server] Firebase Firestore connected to:', firebaseConfig.firestoreDatabaseId);
   }
 } catch (e) {
@@ -45,10 +51,10 @@ function cleanPadForFirestore(pad: any): Record<string, any> {
 const ADMIN_PIN = '4526';
 
 function isAuthorizedAdmin(req: express.Request): boolean {
-  const pinHeader = (req.headers['x-admin-pin'] || req.headers['x-admin-key']) as string;
+  const pinHeader = (req.headers['x-admin-pin'] || req.headers['x-admin-key'] || req.headers['authorization']) as string;
   const pinQuery = req.query && req.query.adminPin ? String(req.query.adminPin) : '';
   const pinBody = req.body && req.body.adminPin ? String(req.body.adminPin) : '';
-  return pinHeader === ADMIN_PIN || pinQuery === ADMIN_PIN || pinBody === ADMIN_PIN;
+  return pinHeader === ADMIN_PIN || pinHeader === `Bearer ${ADMIN_PIN}` || pinQuery === ADMIN_PIN || pinBody === ADMIN_PIN;
 }
 
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -61,19 +67,19 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   next();
 }
 
-
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-pin, x-admin-key');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Expose-Headers', '*');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
 });
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Directories
 const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
@@ -100,7 +106,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max per file
+  limits: { fileSize: 100 * 1024 * 1024, files: 50 }, // 100MB max per file
   fileFilter: (req, file, cb) => {
     // Permissive audio filter: accept any audio format or generic stream
     cb(null, true);
@@ -458,18 +464,28 @@ app.get('/api/stats', (req, res) => {
 
 // POST /api/upload - Upload one or multiple audio files to cloud storage
 const uploadAliases = ['/api/upload', '/api/upload/', '/upload', '/upload/', '/api/audio/upload', '/api/audio/upload/'];
+
+app.options(uploadAliases, (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.sendStatus(200);
+});
+
 app.post(uploadAliases, (req, res) => {
-  if (!isAuthorizedAdmin(req)) {
-    return res.status(403).json({
-      success: false,
-      error: 'Acesso restrito: Somente o Administrador com a senha 4526 pode adicionar áudios.'
-    });
-  }
+  const isPreAuthorized = isAuthorizedAdmin(req);
 
   upload.array('audioFiles', 50)(req, res, async (err: any) => {
     if (err) {
       console.error('Upload multer error:', err);
       return res.status(400).json({ success: false, error: err.message || 'Erro ao processar arquivos de áudio.' });
+    }
+
+    if (!isPreAuthorized && !isAuthorizedAdmin(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Acesso restrito: Somente o Administrador com a senha 4526 pode adicionar áudios.'
+      });
     }
 
     try {
@@ -777,7 +793,10 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
