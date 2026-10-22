@@ -205,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-gradient-to-r from-blue-600 via-sky-500 to-emerald-500 text-white border-white shadow-[0_0_15px_rgba(56,189,248,0.5)] font-mono'
                   : 'bg-[#0d224d]/90 hover:bg-[#133068] text-blue-200 border-blue-500/40 hover:text-white hover:border-blue-400'
               }`}
-              title={isAdmin ? 'Administrador Ativo (Senha 4526)' : 'Acesso do Administrador (Senha)'}
+              title={isAdmin ? 'Administrador Ativo' : 'Acesso do Administrador'}
             >
               {isAdmin ? (
                 <ShieldCheck className="w-3.5 h-3.5 text-white shrink-0" />

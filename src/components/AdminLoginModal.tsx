@@ -38,7 +38,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       onLogin();
       onClose();
     } else {
-      setError('Senha incorreta! Digite a senha 4526 para gerenciar os áudios.');
+      setError('Senha incorreta! Digite a senha para gerenciar os áudios.');
     }
   };
 
@@ -105,7 +105,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 pattern="[0-9]*"
                 maxLength={8}
                 autoFocus
-                placeholder="4526"
+                placeholder="••••"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

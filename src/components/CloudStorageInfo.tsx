@@ -152,7 +152,7 @@ export const CloudStorageInfo: React.FC<CloudStorageInfoProps> = ({
             </div>
           </div>
 
-          {/* Management & Reset Section - Visible only to Administrator (Password 4526) */}
+          {/* Management & Reset Section - Visible only to Administrator */}
           {isAdmin && (
             <div className="pt-3 border-t border-blue-900/60 space-y-3">
               {/* Remove System Pads Button (if any system pads exist) */}

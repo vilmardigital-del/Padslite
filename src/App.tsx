@@ -87,18 +87,18 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   }, []);
 
-  // Admin mode & Portal Flow state
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+  // Admin mode & Portal Flow state: Admin is ALWAYS logged out upon opening the app
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  // Clean up any old admin auth persistence so opening app starts logged out
+  useEffect(() => {
     try {
-      return localStorage.getItem('church_pads_admin_auth') === 'true';
-    } catch {
-      return false;
-    }
-  });
+      localStorage.removeItem('church_pads_admin_auth');
+    } catch {}
+  }, []);
 
   const [hasEntered, setHasEntered] = useState<boolean>(() => {
     try {
-      if (localStorage.getItem('church_pads_admin_auth') === 'true') return true;
       return localStorage.getItem('church_pads_entered') === 'true';
     } catch {
       return false;
@@ -119,29 +119,23 @@ export default function App() {
     setIsAdmin(true);
     setHasEntered(true);
     try {
-      localStorage.setItem('church_pads_admin_auth', 'true');
       localStorage.setItem('church_pads_entered', 'true');
     } catch {}
-    showNotification('Modo Administrador ativado com a senha 4526!');
+    showNotification('Modo Administrador ativado com sucesso!');
   }, [showNotification]);
 
   const handleAdminLogin = useCallback(() => {
     setIsAdmin(true);
-    try {
-      localStorage.setItem('church_pads_admin_auth', 'true');
-    } catch {}
     showNotification('Acesso Administrador liberado! Botão adicionar áudio ativado.');
   }, [showNotification]);
 
   const handleAdminLogout = useCallback(() => {
     setIsAdmin(false);
-    try {
-      localStorage.removeItem('church_pads_admin_auth');
-    } catch {}
     showNotification('Modo Administrador encerrado. Visualizando como músico/usuário.');
   }, [showNotification]);
 
   const handleReturnToPortal = useCallback(() => {
+    setIsAdmin(false);
     setHasEntered(false);
   }, []);
 
@@ -911,7 +905,7 @@ export default function App() {
                   className="w-full py-3 rounded-xl bg-[#0d224d] hover:bg-[#133068] text-blue-200 hover:text-white font-mono text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border border-blue-500/40 transition-all cursor-pointer active:scale-95 shadow-sm"
                 >
                   <Lock className="w-4 h-4 text-blue-400" />
-                  <span>Acesso do Administrador (Senha 4526)</span>
+                  <span>Acesso do Administrador</span>
                 </button>
               </>
             )}

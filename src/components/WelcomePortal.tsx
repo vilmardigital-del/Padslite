@@ -34,7 +34,7 @@ export const WelcomePortal: React.FC<WelcomePortalProps> = ({
       setError(null);
       onEnterAsAdmin();
     } else {
-      setError('Senha incorreta. Apenas o administrador possui a senha de acesso (4526).');
+      setError('Senha incorreta! Digite a senha cadastrada para o administrador.');
     }
   };
 
@@ -103,7 +103,7 @@ export const WelcomePortal: React.FC<WelcomePortalProps> = ({
               <span className="text-[10px] text-blue-200/70">Modo Apresentação</span>
             </div>
             <div className="p-2 rounded-xl bg-[#061129]/60 border border-blue-500/20">
-              <span className="block text-emerald-400 font-black text-base">4526</span>
+              <span className="block text-emerald-400 font-black text-base">Restrito</span>
               <span className="text-[10px] text-blue-200/70">Acesso Admin</span>
             </div>
           </div>
@@ -132,7 +132,7 @@ export const WelcomePortal: React.FC<WelcomePortalProps> = ({
             </span>
           </div>
 
-          {/* Action 2: ÁREA DO ADMINISTRADOR (COM SENHA 4526) */}
+          {/* Action 2: ÁREA DO ADMINISTRADOR */}
           {!showAdminInput ? (
             <button
               id="btn-open-admin-access"
