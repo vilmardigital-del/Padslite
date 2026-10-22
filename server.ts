@@ -51,6 +51,17 @@ function isAuthorizedAdmin(req: express.Request): boolean {
   return pinHeader === ADMIN_PIN || pinQuery === ADMIN_PIN || pinBody === ADMIN_PIN;
 }
 
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!isAuthorizedAdmin(req)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Acesso restrito: Somente o Administrador com a senha 4526 pode gerenciar áudios.'
+    });
+  }
+  next();
+}
+
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -448,6 +459,13 @@ app.get('/api/stats', (req, res) => {
 // POST /api/upload - Upload one or multiple audio files to cloud storage
 const uploadAliases = ['/api/upload', '/api/upload/', '/upload', '/upload/', '/api/audio/upload', '/api/audio/upload/'];
 app.post(uploadAliases, (req, res) => {
+  if (!isAuthorizedAdmin(req)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Acesso restrito: Somente o Administrador com a senha 4526 pode adicionar áudios.'
+    });
+  }
+
   upload.array('audioFiles', 50)(req, res, async (err: any) => {
     if (err) {
       console.error('Upload multer error:', err);
@@ -553,7 +571,7 @@ app.post(uploadAliases, (req, res) => {
 });
 
 // POST /api/pads - Create manual pad (e.g., recorded microphone audio)
-app.post('/api/pads', (req, res) => {
+app.post('/api/pads', requireAdmin, (req, res) => {
   try {
     const { name, category, musicalKey, bpm, audioData, duration, isLoop } = req.body;
     if (!name || !audioData) {
@@ -599,7 +617,7 @@ app.post('/api/pads', (req, res) => {
 });
 
 // PUT /api/pads/:id - Update pad settings
-app.put('/api/pads/:id', (req, res) => {
+app.put('/api/pads/:id', requireAdmin, (req, res) => {
   try {
     const { id } = req.params;
     const currentPads = getPads();
@@ -637,7 +655,7 @@ app.put('/api/pads/:id', (req, res) => {
 });
 
 // DELETE /api/pads/:id - Remove pad and delete file from cloud
-app.delete('/api/pads/:id', (req, res) => {
+app.delete('/api/pads/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     let currentPads = getPads();
@@ -647,8 +665,8 @@ app.delete('/api/pads/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Pad não encontrado' });
     }
 
-    // If it's a custom file, optionally delete from disk
-    if (pad.isCustomUpload && pad.originalFileName) {
+    // If it's a file on disk, delete it
+    if (pad.url) {
       const filePath = path.join(uploadsDir, path.basename(pad.url));
       if (fs.existsSync(filePath)) {
         try {
@@ -664,11 +682,10 @@ app.delete('/api/pads/:id', (req, res) => {
 
     if (firestoreDb) {
       try {
-        deleteDoc(doc(firestoreDb, 'pads', id)).catch(() => {});
-        getDocs(collection(firestoreDb, 'pads', id, 'audioChunks')).then(snap => {
-          snap.forEach(d => deleteDoc(d.ref).catch(() => {}));
-        }).catch(() => {});
-      } catch {}
+        await deleteDoc(doc(firestoreDb, 'pads', id));
+      } catch (e) {
+        console.warn('Notice deleting from Firestore:', e);
+      }
     }
 
     res.json({ success: true, message: 'Pad excluído com sucesso', remainingCount: currentPads.length });
@@ -678,7 +695,7 @@ app.delete('/api/pads/:id', (req, res) => {
 });
 
 // POST /api/pads/remove-system - Remove all pre-loaded system pads, keeping only custom uploads
-app.post('/api/pads/remove-system', async (req, res) => {
+app.post('/api/pads/remove-system', requireAdmin, async (req, res) => {
   try {
     let currentPads = getPads();
     const customOnly = currentPads.filter(p => p.isCustomUpload === true);
@@ -703,8 +720,8 @@ app.post('/api/pads/remove-system', async (req, res) => {
   }
 });
 
-// POST /api/pads/clear-all - Clear all pads completely
-app.post('/api/pads/clear-all', (req, res) => {
+// POST /api/pads/clear-all - Clear all pads completely from disk, Firestore and client
+app.post('/api/pads/clear-all', requireAdmin, async (req, res) => {
   try {
     try {
       if (fs.existsSync(uploadsDir)) {
@@ -719,6 +736,17 @@ app.post('/api/pads/clear-all', (req, res) => {
       console.warn('Notice cleaning audio files:', e);
     }
 
+    if (firestoreDb) {
+      try {
+        const snap = await getDocs(collection(firestoreDb, 'pads'));
+        for (const d of snap.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (e) {
+        console.warn('Notice clearing Firestore collection:', e);
+      }
+    }
+
     savePads([]);
     res.json({ success: true, message: 'Todos os pads foram removidos e o banco está limpo!', count: 0, pads: [] });
   } catch (err: any) {
@@ -727,7 +755,7 @@ app.post('/api/pads/clear-all', (req, res) => {
 });
 
 // POST /api/pads/reset - Restore standard 22 cloud pads (optional factory kit)
-app.post('/api/pads/reset', async (req, res) => {
+app.post('/api/pads/reset', requireAdmin, async (req, res) => {
   try {
     const pads = seedDefaultPads();
     if (firestoreDb) {

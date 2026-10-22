@@ -1,10 +1,17 @@
 import { PadItem } from '../types';
-import { DEFAULT_PADS } from '../constants/defaultPads';
 
-const STORAGE_KEY = 'cloud_audio_pads_v2';
-const DB_NAME = 'pad_audio_cache_db';
+const STORAGE_KEY = 'church_pads_v3';
+const LEGACY_KEYS = ['cloud_audio_pads_v2', 'cloud_audio_pads_v1', 'cloud_audio_pads_v0'];
+const DB_NAME = 'church_pad_audio_db_v3';
 const DB_VERSION = 1;
 const STORE_NAME = 'audio_blobs';
+
+// Automatically purge legacy cached keys from older versions
+if (typeof window !== 'undefined') {
+  try {
+    LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
+  } catch {}
+}
 
 // Open IndexedDB safely
 function openIndexedDB(): Promise<IDBDatabase | null> {
@@ -92,6 +99,27 @@ export async function deleteAudioBlob(id: string): Promise<boolean> {
   }
 }
 
+// Clear all audio blobs from IndexedDB
+export async function clearAllAudioBlobs(): Promise<boolean> {
+  try {
+    const db = await openIndexedDB();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.clear();
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+
 // Get saved pads from localStorage
 export function getStoredPads(): PadItem[] | null {
   if (typeof window === 'undefined') return null;
@@ -100,8 +128,7 @@ export function getStoredPads(): PadItem[] | null {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // Only return user custom uploaded pads, never resurrect deleted sample presets
-        return parsed.filter(p => p && p.isCustomUpload === true);
+        return parsed;
       }
     }
   } catch (e) {
@@ -136,14 +163,11 @@ export function clearStoredPads(): void {
   } catch (e) {
     console.warn('Failed to clear localStorage pads:', e);
   }
+  clearAllAudioBlobs().catch(() => {});
 }
 
-// Default pads: now empty so user can add their own pads
+// Default pads: clean empty slate for church administration
 export function getDefaultPads(): PadItem[] {
   return [];
 }
 
-// Factory example pads (optional recovery)
-export function getFactoryPads(): PadItem[] {
-  return JSON.parse(JSON.stringify(DEFAULT_PADS));
-}

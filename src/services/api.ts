@@ -116,19 +116,18 @@ export async function saveAudioChunksToFirestore(
   return { totalChunks: 0, totalBytes: 0 };
 }
 
+const ADMIN_PIN = '4526';
+
 /**
- * Safely merge pad lists, ensuring that user custom pads are never deleted by
- * transient empty lists or out-of-sync polling responses.
+ * Safely merge pad lists when combining multiple incoming sources.
  */
 export function mergePads(basePads: PadItem[], incomingPads: PadItem[]): PadItem[] {
   const map = new Map<string, PadItem>();
 
-  // 1. Add all base pads
   basePads.forEach((p) => {
     if (p && p.id) map.set(p.id, p);
   });
 
-  // 2. Add/merge incoming pads
   incomingPads.forEach((p) => {
     if (p && p.id) {
       const existing = map.get(p.id);
@@ -143,9 +142,9 @@ export function mergePads(basePads: PadItem[], incomingPads: PadItem[]): PadItem
 
 /**
  * Real-time synchronization across all devices and phones.
- * Uses a triple-sync architecture:
+ * Uses a dual authoritative sync architecture:
  * 1. Server-Sent Events (SSE) from the backend server (/api/events) - instant push across all devices
- * 2. Active Polling interval (every 4 seconds) - rock-solid offline recovery
+ * 2. Active Polling interval (every 4 seconds) - rock-solid connectivity guarantee
  * 3. Firestore onSnapshot - cloud real-time subscription
  */
 export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
@@ -163,11 +162,9 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
         try {
           const data = JSON.parse(event.data);
           if (data && Array.isArray(data.pads)) {
-            const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
-            const customOnly = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
-            const merged = mergePads(current, customOnly);
-            saveStoredPads(merged);
-            callback(merged);
+            // Authoritative server state: replace cache and broadcast
+            saveStoredPads(data.pads);
+            callback(data.pads);
           }
         } catch (e) {
           console.warn('SSE parse notice:', e);
@@ -182,26 +179,21 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
     }
   }
 
-  // 2. Cloud Firestore real-time listener (best effort)
+  // 2. Cloud Firestore real-time listener
   try {
     const padsCol = collection(db, 'pads');
     firestoreUnsub = onSnapshot(
       padsCol,
       (snapshot) => {
         if (!isSubscribed) return;
-        if (!snapshot.empty) {
-          const firestoreList: PadItem[] = [];
-          snapshot.forEach((d) => {
-            const item = { ...(d.data() as PadItem), id: d.id };
-            if (item.isCustomUpload === true) {
-              firestoreList.push(item);
-            }
-          });
-          const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
-          const merged = mergePads(current, firestoreList);
-          saveStoredPads(merged);
-          callback(merged);
-        }
+        const firestoreList: PadItem[] = [];
+        snapshot.forEach((d) => {
+          const item = { ...(d.data() as PadItem), id: d.id };
+          firestoreList.push(item);
+        });
+        firestoreList.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        saveStoredPads(firestoreList);
+        callback(firestoreList);
       },
       (error) => {
         console.warn('Firestore subscription notice (using server sync):', error.message || error);
@@ -219,11 +211,8 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.pads)) {
-          const current = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
-          const customOnly = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
-          const merged = mergePads(current, customOnly);
-          saveStoredPads(merged);
-          callback(merged);
+          saveStoredPads(data.pads);
+          callback(data.pads);
         }
       }
     } catch {
@@ -251,44 +240,38 @@ export function subscribePads(callback: (pads: PadItem[]) => void): () => void {
 
 /**
  * Fetch all pads from backend server AND cloud Firestore database.
- * Merges both sources so all devices receive all user pads.
+ * Authoritative: reflects actual current cloud database.
  */
 export async function fetchPads(): Promise<PadItem[]> {
-  let serverPads: PadItem[] = [];
   try {
     const res = await fetch(getApiUrl('/api/pads'), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.pads)) {
-        serverPads = data.pads.filter((p: PadItem) => p.isCustomUpload === true);
+        saveStoredPads(data.pads);
+        return data.pads;
       }
     }
   } catch (err) {
-    console.warn('Server fetchPads notice, checking cloud and local cache:', err);
+    console.warn('Server fetchPads notice, checking Firestore:', err);
   }
 
-  // Query Firestore directly so any device gets pads even if server was transiently unreachable
-  let firestorePads: PadItem[] = [];
+  // Query Firestore directly if server was transiently unreachable
   try {
     const snap = await getDocs(collection(db, 'pads'));
-    if (!snap.empty) {
-      snap.forEach(d => {
-        const item = { ...(d.data() as PadItem), id: d.id };
-        if (item.isCustomUpload === true) {
-          firestorePads.push(item);
-        }
-      });
-    }
+    const firestorePads: PadItem[] = [];
+    snap.forEach(d => {
+      const item = { ...(d.data() as PadItem), id: d.id };
+      firestorePads.push(item);
+    });
+    firestorePads.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    saveStoredPads(firestorePads);
+    return firestorePads;
   } catch (err) {
     console.warn('Firestore fetchPads notice:', err);
   }
 
-  const local = (getStoredPads() || []).filter(p => p.isCustomUpload === true);
-  const mergedWithFirestore = mergePads(serverPads, firestorePads);
-  const finalMerged = mergePads(local, mergedWithFirestore);
-
-  saveStoredPads(finalMerged);
-  return finalMerged;
+  return getStoredPads() || [];
 }
 
 /**
@@ -361,153 +344,105 @@ export async function uploadAudioFiles(
 
   // Upload with real, smooth XMLHttpRequest progress
   let serverAddedPads: PadItem[] = [];
-  let serverUploadOk = false;
 
-  try {
-    const uploadResponse = await new Promise<any>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', getApiUrl('/api/upload'), true);
+  const uploadResponse = await new Promise<any>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', getApiUrl('/api/upload'), true);
+    xhr.setRequestHeader('x-admin-pin', ADMIN_PIN);
 
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && onProgress) {
-          // Upload transfer takes 5% to 85% of total progress
-          const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
-          onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        // Upload transfer takes 5% to 85% of total progress
+        const transferPercent = Math.min(85, 5 + Math.round((event.loaded / event.total) * 80));
+        onProgress(`Enviando áudios para a nuvem (${transferPercent}%)...`, transferPercent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const json = JSON.parse(xhr.responseText);
+          resolve(json);
+        } catch {
+          reject(new Error('Resposta inválida do servidor de áudio.'));
         }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const json = JSON.parse(xhr.responseText);
-            resolve(json);
-          } catch {
-            reject(new Error('Resposta inválida do servidor de áudio.'));
-          }
-        } else {
-          reject(new Error(`Erro HTTP ${xhr.status}`));
+      } else if (xhr.status === 403) {
+        reject(new Error('Acesso restrito: Somente o Administrador com senha 4526 pode adicionar áudio.'));
+      } else {
+        try {
+          const json = JSON.parse(xhr.responseText);
+          reject(new Error(json.error || `Erro HTTP ${xhr.status}`));
+        } catch {
+          reject(new Error(`Erro ao enviar arquivos (${xhr.status}). Verifique a conexão.`));
         }
-      };
+      }
+    };
 
-      xhr.onerror = () => {
-        reject(new Error('Falha de rede'));
-      };
+    xhr.onerror = () => {
+      reject(new Error('Falha de rede ao conectar com o servidor.'));
+    };
 
-      xhr.ontimeout = () => {
-        reject(new Error('Tempo limite excedido'));
-      };
+    xhr.ontimeout = () => {
+      reject(new Error('Tempo limite excedido no upload do áudio.'));
+    };
 
-      xhr.timeout = 45000;
-      xhr.send(formData);
-    });
+    xhr.timeout = 60000;
+    formData.append('adminPin', ADMIN_PIN);
+    xhr.send(formData);
+  });
 
-    if (uploadResponse && uploadResponse.success && Array.isArray(uploadResponse.addedPads)) {
-      serverAddedPads = uploadResponse.addedPads;
-      serverUploadOk = true;
-    }
-  } catch (err: any) {
-    console.warn('Upload via servidor finalizou ou retornou erro, ativando salvamento local com IndexedDB:', err.message || err);
+  if (uploadResponse && uploadResponse.success && Array.isArray(uploadResponse.addedPads)) {
+    serverAddedPads = uploadResponse.addedPads;
+  } else {
+    throw new Error('Falha ao processar áudios no servidor.');
   }
 
   if (onProgress) onProgress('Gravando no banco de dados e sincronizando...', 90);
 
-  // 1. If server upload succeeded, cache audio in IndexedDB & save chunks to Firestore
-  if (serverUploadOk && serverAddedPads.length > 0) {
-    for (let i = 0; i < serverAddedPads.length; i++) {
-      const pad = serverAddedPads[i];
-      const originalItem = normalizedItems.find(it => it.file.name === pad.originalFileName) || normalizedItems[i];
+  // Cache audio in IndexedDB & sync duration / Firestore metadata
+  for (let i = 0; i < serverAddedPads.length; i++) {
+    const pad = serverAddedPads[i];
+    const originalItem = normalizedItems.find(it => it.file.name === pad.originalFileName) || normalizedItems[i];
 
-      if (originalItem?.file) {
-        // Cache binary blob in local IndexedDB for immediate zero-latency playback
-        await storeAudioBlob(pad.id, originalItem.file);
+    if (originalItem?.file) {
+      // Cache binary blob in local IndexedDB for immediate zero-latency playback
+      await storeAudioBlob(pad.id, originalItem.file);
 
-        // Extract accurate duration if server didn't have it
-        if (!pad.duration || pad.duration === 0) {
-          const accurateDuration = await getAudioDuration(originalItem.file);
-          if (accurateDuration > 0) {
-            pad.duration = accurateDuration;
-            fetch(getApiUrl(`/api/pads/${pad.id}`), {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ duration: accurateDuration })
-            }).catch(() => {});
-          }
-        }
-
-        // Save metadata doc to Firestore
-        try {
-          const cleaned = cleanPadForFirestore(pad);
-          await setDoc(doc(db, 'pads', pad.id), cleaned);
-        } catch {
-          // non-blocking
+      // Extract accurate duration if server didn't have it
+      if (!pad.duration || pad.duration === 0) {
+        const accurateDuration = await getAudioDuration(originalItem.file);
+        if (accurateDuration > 0) {
+          pad.duration = accurateDuration;
+          fetch(getApiUrl(`/api/pads/${pad.id}`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-pin': ADMIN_PIN,
+            },
+            body: JSON.stringify({ duration: accurateDuration, adminPin: ADMIN_PIN })
+          }).catch(() => {});
         }
       }
-    }
-  } else {
-    // 2. Fallback: Server was unavailable. Save locally into IndexedDB on this device!
-    if (onProgress) onProgress('Salvando áudios no dispositivo com segurança...', 70);
-    const existingPads = getStoredPads() || [];
 
-    for (let i = 0; i < normalizedItems.length; i++) {
-      const item = normalizedItems[i];
-      const padId = `pad-custom-${Date.now()}-${i}`;
-      const cleanName = item.file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
-
-      const keyMatch = item.file.name.match(/\b([A-G][#b]?m?)\b/i);
-      const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
-      const bpmMatch = item.file.name.match(/(\d{2,3})\s*bpm/i);
-      const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
-
-      const duration = await getAudioDuration(item.file);
-      const category = item.category || 'worship';
-
-      const localPad: PadItem = {
-        id: padId,
-        name: cleanName,
-        category,
-        musicalKey: detectedKey,
-        bpm: detectedBpm,
-        url: `/uploads/audio/${item.file.name}`,
-        originalFileName: item.file.name,
-        fileSize: item.file.size,
-        duration: duration || 0,
-        color: PAD_COLORS[(existingPads.length + i) % PAD_COLORS.length],
-        isLoop: true,
-        volume: 0.95,
-        pan: 0,
-        filterCutoff: 20000,
-        fadeInTime: category === 'worship' ? 1.5 : 0,
-        fadeOutTime: category === 'worship' ? 2.5 : 0.05,
-        isCustomUpload: true,
-        cloudStored: true,
-        createdAt: new Date().toISOString()
-      };
-
-      // Store binary blob directly into IndexedDB for 0ms local playback
-      await storeAudioBlob(padId, item.file);
-
-      // Best effort save pad metadata to Firestore
+      // Save metadata doc to Firestore
       try {
-        const cleaned = cleanPadForFirestore(localPad);
-        await setDoc(doc(db, 'pads', padId), cleaned);
-      } catch (err) {
-        console.warn('Notice saving pad doc to Firestore:', err);
+        const cleaned = cleanPadForFirestore(pad);
+        await setDoc(doc(db, 'pads', pad.id), cleaned);
+      } catch {
+        // non-blocking
       }
-
-      serverAddedPads.push(localPad);
     }
   }
 
-  // 3. Update and merge stored pads so new pads are immediately available
+  // Update and set stored pads so new pads are immediately available
   const allCurrentPads = await fetchPads();
-  const mergedPads = mergePads(allCurrentPads, serverAddedPads);
-  saveStoredPads(mergedPads);
+  saveStoredPads(allCurrentPads);
 
   if (onProgress) onProgress('Áudios salvos com sucesso e sincronizados!', 100);
 
   return {
     addedPads: serverAddedPads,
-    totalPads: mergedPads.length
+    totalPads: allCurrentPads.length
   };
 }
 
@@ -519,8 +454,11 @@ export async function updatePad(id: string, updates: Partial<PadItem>): Promise<
   try {
     const res = await fetch(getApiUrl(`/api/pads/${id}`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-pin': ADMIN_PIN,
+      },
+      body: JSON.stringify({ ...updates, adminPin: ADMIN_PIN }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -567,6 +505,9 @@ export async function deletePad(id: string): Promise<void> {
   try {
     await fetch(getApiUrl(`/api/pads/${id}`), {
       method: 'DELETE',
+      headers: {
+        'x-admin-pin': ADMIN_PIN,
+      },
     });
   } catch (err) {
     console.warn('Server deletePad notice:', err);
@@ -594,7 +535,12 @@ export async function deletePad(id: string): Promise<void> {
  */
 export async function resetPads(): Promise<PadItem[]> {
   try {
-    const res = await fetch(getApiUrl('/api/pads/reset'), { method: 'POST' });
+    const res = await fetch(getApiUrl('/api/pads/reset'), {
+      method: 'POST',
+      headers: {
+        'x-admin-pin': ADMIN_PIN,
+      },
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.pads && Array.isArray(data.pads)) {
@@ -613,7 +559,12 @@ export async function resetPads(): Promise<PadItem[]> {
  */
 export async function removeSystemPads(): Promise<PadItem[]> {
   try {
-    const res = await fetch(getApiUrl('/api/pads/remove-system'), { method: 'POST' });
+    const res = await fetch(getApiUrl('/api/pads/remove-system'), {
+      method: 'POST',
+      headers: {
+        'x-admin-pin': ADMIN_PIN,
+      },
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.pads && Array.isArray(data.pads)) {
@@ -647,7 +598,12 @@ export async function removeSystemPads(): Promise<PadItem[]> {
 export async function clearAllPads(): Promise<PadItem[]> {
   // 1. Clear server database and audio files
   try {
-    await fetch(getApiUrl('/api/pads/clear-all'), { method: 'POST' });
+    await fetch(getApiUrl('/api/pads/clear-all'), {
+      method: 'POST',
+      headers: {
+        'x-admin-pin': ADMIN_PIN,
+      },
+    });
   } catch (e) {
     console.warn('Clear server pads notice:', e);
   }
@@ -665,7 +621,7 @@ export async function clearAllPads(): Promise<PadItem[]> {
     console.warn('Clear firestore notice:', e);
   }
 
-  // 3. Clear local storage
+  // 3. Clear local storage & IndexedDB
   clearStoredPads();
   return [];
 }
