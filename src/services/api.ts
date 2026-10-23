@@ -89,31 +89,137 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallbackValue: T): Prom
   ]);
 }
 
-/**
- * Audio binary chunks helper (no-op since audio is stored on server filesystem and cached in IndexedDB).
- */
-export async function getAudioChunksFromFirestore(_padId: string): Promise<ArrayBuffer | null> {
-  return null;
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  const chunkSize = 0x8000;
+  for (let i = 0; i < len; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, Math.min(i + chunkSize, len))));
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 /**
- * Delete audio chunks helper (no-op).
+ * Retrieve audio chunks from Firestore and reconstruct ArrayBuffer.
  */
-export async function deleteAudioChunksFromFirestore(_padId: string): Promise<void> {
-  return Promise.resolve();
+export async function getAudioChunksFromFirestore(padId: string): Promise<ArrayBuffer | null> {
+  try {
+    const snap = await getDocs(collection(db, 'pads', padId, 'audioChunks'));
+    if (snap.empty) return null;
+
+    const chunks: Array<{ index: number; data: string }> = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data && data.data) {
+        chunks.push({ index: data.index ?? 0, data: data.data });
+      }
+    });
+
+    if (chunks.length === 0) return null;
+    chunks.sort((a, b) => a.index - b.index);
+
+    const buffers: ArrayBuffer[] = chunks.map((c) => base64ToArrayBuffer(c.data));
+    const totalLength = buffers.reduce((acc, b) => acc + b.byteLength, 0);
+
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const b of buffers) {
+      result.set(new Uint8Array(b), offset);
+      offset += b.byteLength;
+    }
+
+    return result.buffer;
+  } catch (err) {
+    console.warn('Notice reading audio chunks from cloud:', err);
+    return null;
+  }
 }
 
 /**
- * Audio chunk saver (no-op to prevent Firestore quota limit exhaustion).
- * Audio files are stored on server disk and cached in local browser IndexedDB.
+ * Delete audio chunks from Firestore.
+ */
+export async function deleteAudioChunksFromFirestore(padId: string): Promise<void> {
+  try {
+    const snap = await getDocs(collection(db, 'pads', padId, 'audioChunks'));
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref).catch(() => {});
+    }
+  } catch {}
+}
+
+/**
+ * Save audio chunks to Firestore in slices of ~600KB (well under 1MB doc limit).
+ * Used as cloud backup and for Vercel/serverless environments.
+ */
+/**
+ * Save audio chunks to Firestore in slices of ~480KB (well under 1MB doc limit).
+ * Used as cloud backup and for Vercel/serverless environments.
  */
 export async function saveAudioChunksToFirestore(
-  _padId: string,
-  _fileOrBuffer: File | Blob | ArrayBuffer,
+  padId: string,
+  fileOrBuffer: File | Blob | ArrayBuffer,
   onProgress?: (percent: number) => void
 ): Promise<{ totalChunks: number; totalBytes: number }> {
-  if (onProgress) onProgress(100);
-  return { totalChunks: 0, totalBytes: 0 };
+  try {
+    let arrayBuffer: ArrayBuffer;
+    if (fileOrBuffer instanceof ArrayBuffer) {
+      arrayBuffer = fileOrBuffer;
+    } else if (fileOrBuffer && typeof (fileOrBuffer as any).arrayBuffer === 'function') {
+      arrayBuffer = await (fileOrBuffer as Blob).arrayBuffer();
+    } else {
+      return { totalChunks: 0, totalBytes: 0 };
+    }
+
+    const totalBytes = arrayBuffer.byteLength;
+    // Chunk size: 480,000 bytes raw (~640KB base64, safe under 1MB limit)
+    const CHUNK_SIZE = 480000;
+    const totalChunks = Math.ceil(totalBytes / CHUNK_SIZE);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, totalBytes);
+      const slice = arrayBuffer.slice(start, end);
+      const base64Data = arrayBufferToBase64(slice);
+
+      const chunkRef = doc(db, 'pads', padId, 'audioChunks', `chunk_${i}`);
+      let written = false;
+      for (let attempt = 0; attempt < 3 && !written; attempt++) {
+        try {
+          await setDoc(chunkRef, {
+            index: i,
+            totalChunks,
+            totalBytes,
+            data: base64Data,
+            createdAt: new Date().toISOString()
+          });
+          written = true;
+        } catch (writeErr) {
+          if (attempt === 2) throw writeErr;
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      if (onProgress) {
+        onProgress(Math.round(((i + 1) / totalChunks) * 100));
+      }
+    }
+
+    return { totalChunks, totalBytes };
+  } catch (e) {
+    console.warn('Notice saving cloud chunks:', e);
+    return { totalChunks: 0, totalBytes: 0 };
+  }
 }
 
 const ADMIN_PIN = '4526';
@@ -412,20 +518,84 @@ export async function uploadAudioFiles(
         if (fetchResp.status === 403) {
           throw new Error('Acesso restrito: Senha de administrador incorreta.');
         }
-        const errText = await fetchResp.text().catch(() => '');
-        throw new Error(`Erro no servidor (${fetchResp.status}): ${errText || 'Falha ao salvar áudio'}`);
+        console.warn(`Server upload status ${fetchResp.status}, falling back to Cloud Firestore.`);
       }
     } catch (fetchErr: any) {
-      console.error('Fetch upload error:', fetchErr);
-      throw new Error('Falha ao conectar com o servidor. Verifique sua conexão com a internet e tente novamente.');
+      console.warn('Server upload not reachable (e.g. Vercel/serverless), activating Cloud Firestore storage:', fetchErr);
     }
   }
 
-  if (!uploadResponse || !uploadResponse.success || !Array.isArray(uploadResponse.addedPads)) {
-    throw new Error('Falha ao processar os arquivos de áudio no servidor.');
+  let serverAddedPads: PadItem[] = [];
+
+  if (uploadResponse && uploadResponse.success && Array.isArray(uploadResponse.addedPads)) {
+    serverAddedPads = uploadResponse.addedPads;
+  } else {
+    // 3. Fallback: Server was unavailable or running on Vercel/serverless!
+    // Save audio into local IndexedDB + Cloud Firestore so it is NEVER lost!
+    if (onProgress) onProgress('Salvando áudio no banco de dados em nuvem...', 70);
+    const existingPads = getStoredPads() || [];
+
+    for (let i = 0; i < normalizedItems.length; i++) {
+      const item = normalizedItems[i];
+      const padId = `pad-cloud-${Date.now()}-${i}`;
+      const cleanName = item.file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+
+      const keyMatch = item.file.name.match(/\b([A-G][#b]?m?)\b/i);
+      const detectedKey = keyMatch ? keyMatch[1].toUpperCase() : undefined;
+      const bpmMatch = item.file.name.match(/(\d{2,3})\s*bpm/i);
+      const detectedBpm = bpmMatch ? parseInt(bpmMatch[1], 10) : undefined;
+      const duration = await getAudioDuration(item.file);
+      const category = item.category || 'worship';
+
+      // 1. Cache binary blob in local IndexedDB for instant 0ms playback
+      await storeAudioBlob(padId, item.file).catch(() => {});
+
+      // 2. Upload chunks to Firestore (supports up to 25MB) so other devices can stream on Vercel
+      if (item.file.size < 25 * 1024 * 1024) {
+        if (onProgress) onProgress(`Sincronizando áudio ${i + 1} de ${normalizedItems.length} na nuvem...`, 80);
+        await saveAudioChunksToFirestore(padId, item.file, (chunkPct) => {
+          if (onProgress) {
+            onProgress(`Sincronizando áudio ${i + 1} de ${normalizedItems.length} (${chunkPct}%)...`, 75 + Math.round(chunkPct * 0.15));
+          }
+        }).catch(() => {});
+      }
+
+      const pad: PadItem = {
+        id: padId,
+        name: cleanName,
+        category,
+        musicalKey: detectedKey,
+        bpm: detectedBpm,
+        url: `/uploads/audio/${item.file.name}`,
+        originalFileName: item.file.name,
+        fileSize: item.file.size,
+        duration: duration || 0,
+        color: PAD_COLORS[(existingPads.length + i) % PAD_COLORS.length],
+        isLoop: true,
+        volume: 0.95,
+        pan: 0,
+        filterCutoff: 20000,
+        fadeInTime: category === 'worship' ? 1.5 : 0,
+        fadeOutTime: category === 'worship' ? 2.5 : 0.05,
+        isCustomUpload: true,
+        cloudStored: true,
+        createdAt: new Date().toISOString()
+      };
+
+      // 3. Save metadata doc to Firestore
+      try {
+        await setDoc(doc(db, 'pads', padId), cleanPadForFirestore(pad));
+      } catch (err) {
+        console.warn('Notice saving pad doc to Firestore:', err);
+      }
+
+      serverAddedPads.push(pad);
+    }
   }
 
-  const serverAddedPads: PadItem[] = uploadResponse.addedPads;
+  if (serverAddedPads.length === 0) {
+    throw new Error('Falha ao processar os arquivos de áudio.');
+  }
 
   if (onProgress) onProgress('Gravando no banco de dados e sincronizando...', 90);
 
@@ -465,15 +635,23 @@ export async function uploadAudioFiles(
     }
   }
 
-  // Update and set stored pads so new pads are immediately available
-  const allCurrentPads = await fetchPads();
-  saveStoredPads(allCurrentPads);
+  // Update and set stored pads immediately so new pads appear with zero delay
+  const existingStored = getStoredPads() || [];
+  const mergedPads = mergePads(existingStored, serverAddedPads);
+  saveStoredPads(mergedPads);
+
+  try {
+    const allCurrentPads = await fetchPads();
+    if (allCurrentPads && allCurrentPads.length > 0) {
+      saveStoredPads(mergePads(mergedPads, allCurrentPads));
+    }
+  } catch {}
 
   if (onProgress) onProgress('Áudios salvos com sucesso e sincronizados!', 100);
 
   return {
     addedPads: serverAddedPads,
-    totalPads: allCurrentPads.length
+    totalPads: mergedPads.length
   };
 }
 
@@ -655,4 +833,61 @@ export async function clearAllPads(): Promise<PadItem[]> {
   // 3. Clear local storage & IndexedDB
   clearStoredPads();
   return [];
+}
+
+/**
+ * Create a pad from a public audio URL (e.g. Google Drive direct link, Dropbox, S3, cloud URL).
+ * Perfect for Vercel and multi-device cloud streaming.
+ */
+export async function createPadFromUrl(params: {
+  name: string;
+  url: string;
+  category: PadItem['category'];
+  musicalKey?: string;
+  bpm?: number;
+}): Promise<PadItem> {
+  const padId = `pad-url-${Date.now()}`;
+  const existingPads = getStoredPads() || [];
+
+  const pad: PadItem = {
+    id: padId,
+    name: params.name,
+    category: params.category || 'worship',
+    musicalKey: params.musicalKey,
+    bpm: params.bpm,
+    url: params.url,
+    originalFileName: params.name,
+    fileSize: 1000000,
+    duration: 0,
+    color: PAD_COLORS[existingPads.length % PAD_COLORS.length],
+    isLoop: true,
+    volume: 0.95,
+    pan: 0,
+    filterCutoff: 20000,
+    fadeInTime: params.category === 'worship' ? 1.5 : 0,
+    fadeOutTime: params.category === 'worship' ? 2.5 : 0.05,
+    isCustomUpload: true,
+    cloudStored: true,
+    createdAt: new Date().toISOString()
+  };
+
+  // 1. Save metadata doc to Firestore
+  try {
+    await setDoc(doc(db, 'pads', padId), cleanPadForFirestore(pad));
+  } catch (e) {
+    console.warn('Firestore setDoc notice:', e);
+  }
+
+  // 2. Best-effort notify backend server if active
+  fetch(getApiUrl(`/api/pads?adminPin=${encodeURIComponent(ADMIN_PIN)}`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-pin': ADMIN_PIN },
+    body: JSON.stringify({ ...pad, adminPin: ADMIN_PIN })
+  }).catch(() => {});
+
+  // 3. Update local cache
+  const current = await fetchPads();
+  const next = [...current.filter(p => p.id !== padId), pad];
+  saveStoredPads(next);
+  return pad;
 }

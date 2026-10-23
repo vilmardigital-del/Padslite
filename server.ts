@@ -17,7 +17,7 @@ try {
   setLogLevel('error');
 } catch {}
 
-// Initialize server-side Firebase Firestore instance with long polling to prevent gRPC ECONNRESET
+// Initialize server-side Firebase Firestore instance with force long polling to prevent gRPC ECONNRESET
 let firestoreDb: any = null;
 try {
   const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -25,7 +25,7 @@ try {
     const firebaseConfig = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
     const fApp = initializeApp(firebaseConfig, 'pads-server-app');
     firestoreDb = initializeFirestore(fApp, {
-      experimentalAutoDetectLongPolling: true,
+      experimentalForceLongPolling: true,
     }, firebaseConfig.firestoreDatabaseId);
     console.log('[Server] Firebase Firestore connected to:', firebaseConfig.firestoreDatabaseId);
   }
@@ -81,13 +81,22 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Directories
-const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
-const dataDir = path.join(process.cwd(), 'data');
+// Directories (uses /tmp on Vercel/serverless environments where root disk is read-only)
+const isVercel = Boolean(process.env.VERCEL);
+const uploadsDir = isVercel
+  ? path.join('/tmp', 'uploads', 'audio')
+  : path.join(process.cwd(), 'public', 'uploads', 'audio');
+const dataDir = isVercel
+  ? path.join('/tmp', 'data')
+  : path.join(process.cwd(), 'data');
 const padsFilePath = path.join(dataDir, 'pads.json');
 
-fs.mkdirSync(uploadsDir, { recursive: true });
-fs.mkdirSync(dataDir, { recursive: true });
+try {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.mkdirSync(dataDir, { recursive: true });
+} catch (e) {
+  console.warn('Notice creating directory:', e);
+}
 
 // Configure Multer for audio uploads
 const storage = multer.diskStorage({
@@ -813,4 +822,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

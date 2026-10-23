@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "fadeOutTime": 2.5,
+    "filterCutoff": 20000,
+    "isLoop": true,
+    "color": "#3b82f6",
+    "isCustomUpload": true,
+    "name": "6 por 8 valsa",
+    "id": "pad-custom-1792722321160-0",
+    "originalFileName": "6--por--8--valsa.mp3",
+    "fileSize": 8909217,
+    "duration": 556.8,
+    "category": "worship",
+    "pan": 0,
+    "volume": 0.95,
+    "url": "/uploads/audio/6--por--8--valsa-1792722321086-6657.mp3",
+    "cloudStored": true,
+    "fadeInTime": 1.5,
+    "adminPin": "4526",
+    "createdAt": "2026-10-23T02:25:21.160Z"
+  },
+  {
+    "id": "pad-custom-1792722542630-0",
+    "name": "5mb test",
+    "category": "worship",
+    "url": "/uploads/audio/5mb_test-1792722542601-7465.wav",
+    "originalFileName": "5mb_test.wav",
+    "fileSize": 5242880,
+    "duration": 0,
+    "color": "#6366f1",
+    "isLoop": true,
+    "volume": 0.95,
+    "pan": 0,
+    "filterCutoff": 20000,
+    "fadeInTime": 1.5,
+    "fadeOutTime": 2.5,
+    "isCustomUpload": true,
+    "cloudStored": true,
+    "createdAt": "2026-10-23T02:29:02.630Z"
+  }
+]
